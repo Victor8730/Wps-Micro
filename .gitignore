@@ -1,0 +1,6 @@
+# phpstorm project files
+.idea
+application/vendor/*
+application/Cache/*
+# composer lock
+composer.lock

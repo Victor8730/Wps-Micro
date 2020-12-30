@@ -1,0 +1,30 @@
+version: "3.3"
+
+#Docker Services
+services:
+   nginx:
+     container_name: redirect-generator-nginx
+     build:
+       context: .
+       dockerfile: docker/nginx.Dockerfile
+     ports:
+       - 80:80
+     links:
+       - fpm
+     volumes:
+         - ./:/var/www/redirect-generator-docker
+     networks:
+       - app-network
+   fpm:
+     container_name: redirect-generator-php-fpm
+     build:
+       context: .
+       dockerfile: docker/fpm.Dockerfile
+     volumes:
+       - ./:/var/www/redirect-generator-docker
+     networks:
+       - app-network
+#Docker Networks
+networks:
+  app-network:
+    driver: bridge

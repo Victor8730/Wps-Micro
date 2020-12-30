@@ -1,0 +1,29 @@
+{% extends "example-template.twig" %}
+{% block content %}
+    <div class="col-md-12 order-md-2">
+        <div class="card text-center">
+            <form action="/" method="post" class="my-2 form">
+                <div class="input-group px-4 py-2">
+                    <div class="input-group-prepend">
+                        <span class="input-group-text"><i class="fa fa-bars pr-2" aria-hidden="true"></i>Select example</span>
+                    </div>
+                    <select name="type-redirect" class="form-control">
+                        <option value="1">option 1</option>
+                        <option value="2">option 2</option>
+                    </select>
+                </div>
+                <div class="input-group px-4 py-2">
+                    <div class="input-group-prepend">
+                        <span class="input-group-text"><i class="fa fa-share-alt pr-2" aria-hidden="true"></i>Input example</span>
+                    </div>
+                    <input type="text" name="url-data" id="url-data" class="form-control" placeholder="placeholder example" aria-describedby="url-data">
+                </div>
+                <div class="form-group row">
+                    <div class="col-sm-12 py-2">
+                        <button type="submit" class="btn btn-success tooltip-show" title="Creating kml file">Example button</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+{% endblock %}
