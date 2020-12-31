@@ -5,42 +5,42 @@ declare(strict_types=1);
 namespace Core;
 
 
-class Base
+class Base implements face\Base
 {
     /**
      * Application version
      */
-    protected const VERSION = '1.1.0';
+    public const VERSION = '1.1.0';
 
     /**
      * Application path root
      */
-    protected const PATH_ROOT = __DIR__ . '/../..';
+    public const PATH_ROOT = __DIR__ . '/../..';
 
     /**
      * Application folder name
      */
-    protected const PATH_APPLICATION = 'application';
+    public const PATH_APPLICATION = 'application';
 
     /**
      * Controller folder name
      */
-    protected const PATH_CONTROLLERS = 'Controllers';
+    public const PATH_CONTROLLERS = 'Controllers';
 
     /**
      * Model folder name
      */
-    protected const PATH_MODEL = 'Models';
+    public const PATH_MODEL = 'Models';
 
     /**
      * Cache folder name
      */
-    protected const PATH_CACHE = 'Cache';
+    public const PATH_CACHE = 'Cache';
 
     /**
      * Views folder name
      */
-    protected const PATH_VIEWS = 'Views';
+    public const PATH_VIEWS = 'Views';
 
     /**
      * Tests folder name
@@ -48,13 +48,10 @@ class Base
     protected const PATH_TESTS = 'Tests';
 
     /**
-     * Get model
-     * @var object
+     * Base constructor.
      */
-    protected object $model;
-
     public function __construct()
     {
-        $this->model = new Model();
+
     }
 }

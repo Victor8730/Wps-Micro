@@ -3,16 +3,19 @@ declare(strict_types=1);
 
 namespace Core;
 
-class Model implements face\Base
+class Model extends Base
 {
     /**
-     * @var Validator|object
+     * Validator object
+     * @var object
      */
     public object $validator;
 
     public function __construct()
     {
         $this->validator = new Validator();
+
+        parent::__construct();
     }
 
 }

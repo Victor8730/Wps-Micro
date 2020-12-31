@@ -42,6 +42,11 @@ class Controller extends Base
         return get_class($this);
     }
 
+    /**
+     * If use ajax send message and state response
+     * @param bool $success
+     * @param string $message
+     */
     protected function ajaxResponse(bool $success = true, string $message = ''): void
     {
         $response = array(

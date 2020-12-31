@@ -6,7 +6,7 @@ namespace Core;
 
 use Exceptions\{NotExistClassException, NotExistMethodException, NotExistFileException};
 
-class Route extends Base
+class Route
 {
     /**
      * Controller Name
@@ -21,15 +21,20 @@ class Route extends Base
     private string $actionName;
 
     /**
+     * Create Model
+     */
+    private object $model;
+
+    /**
      * Route constructor.
      * Fill in the required data, controller name and method name.
+     * Create model object for get validator and other base model object
      */
     public function __construct()
     {
         $this->controllerName = 'home';
         $this->actionName = 'index';
-
-        parent::__construct();
+        $this->model = new Model();
     }
 
     /**
@@ -53,7 +58,7 @@ class Route extends Base
             try {
                 if (count($arrRoutes) > 0) {
                     $nameController = $arrRoutes[1] ?? $arrRoutes[0];
-                    $this->model->validator->checkFileExist(parent::PATH_APPLICATION . '/' . parent::PATH_CONTROLLERS . '/Controller' . ucfirst($nameController) . '.php');
+                    $this->model->validator->checkFileExist(BASE::PATH_APPLICATION . '/' . BASE::PATH_CONTROLLERS . '/Controller' . ucfirst($nameController) . '.php');
 
                     if (!empty($arrRoutes[1])) {
                         $this->actionName = $arrRoutes[0];
@@ -66,7 +71,7 @@ class Route extends Base
             }
         }
 
-        $controllerName = parent::PATH_CONTROLLERS . '\Controller' . ucfirst($this->controllerName);
+        $controllerName = BASE::PATH_CONTROLLERS . '\Controller' . ucfirst($this->controllerName);
         $controller = '';
 
         try {

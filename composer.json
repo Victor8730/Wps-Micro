@@ -1,10 +1,11 @@
 {
-  "name": "webpagestudio/redirect-generator",
+  "name": "webpagestudio/wps-micro",
   "description": "Skeleton for web apps with MVC pattern",
   "license": "MIT License",
   "authors": [
     {
-      "name": "Victor Galiuzov"
+      "name": "Victor Galiuzov",
+      "email": "victor8730@gmail.com"
     }
   ],
   "config": {
