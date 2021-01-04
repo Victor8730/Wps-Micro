@@ -1,6 +1,5 @@
 {
   "name": "webpagestudio/wps-micro",
-  "version": "1.0.0",
   "description": "Skeleton for web apps with MVC pattern",
   "license": "MIT",
   "authors": [
