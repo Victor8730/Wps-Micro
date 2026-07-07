@@ -5,50 +5,50 @@ declare(strict_types=1);
 namespace Core;
 
 
-class Base implements face\Base
+class Base implements Face\Base
 {
     /**
-     * Application version
+     * Current framework version.
      */
     public const VERSION = '1.0.0';
 
     /**
-     * Application path root
+     * Project root path.
      */
     public const PATH_ROOT = __DIR__ . '/../..';
 
     /**
-     * Application folder name
+     * Application directory name.
      */
     public const PATH_APPLICATION = 'application';
 
     /**
-     * Controller folder name
+     * Controller directory name.
      */
     public const PATH_CONTROLLERS = 'Controllers';
 
     /**
-     * Model folder name
+     * Model directory name.
      */
     public const PATH_MODEL = 'Models';
 
     /**
-     * Cache folder name
+     * Cache directory name.
      */
     public const PATH_CACHE = 'Cache';
 
     /**
-     * Views folder name
+     * View directory name.
      */
     public const PATH_VIEWS = 'Views';
 
     /**
-     * Tests folder name
+     * Test directory name.
      */
     protected const PATH_TESTS = 'Tests';
 
     /**
-     * Base constructor.
+     * Initialize shared framework state.
      */
     public function __construct()
     {

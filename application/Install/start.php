@@ -11,4 +11,3 @@ require_once $dirFrontEnd . '/application/vendor/autoload.php';
 $install = new Install();
 
 $install->copyFileAndDirectory($dirFrontEnd . '/application/vendor/webpagestudio/wps-micro/dist', $dirFrontEnd);
-

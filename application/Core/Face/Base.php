@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace Core\face;
+namespace Core\Face;
 
 interface Base
 {
     /**
-     * We need a basic constructor to add default objects, if your needed
+     * Initialize shared framework state.
      */
     public function __construct();
 }

@@ -10,10 +10,10 @@ class NotValidDataFromUrlException extends \Exception
 {
     public function __construct()
     {
-        $this->message = 'The data received from the url is incorrect, check the data';
-        error_log("\n" . date("Y-m-d H:i:s") . " : Script with problem: " . $this->getFile() . " | Line with problem: " . $this->getLine() . " | " . $this->message,
+        $message = 'The data received from the URL is incorrect, check the data';
+        error_log("\n" . date("Y-m-d H:i:s") . " : Script with problem: " . $this->getFile() . " | Line with problem: " . $this->getLine() . " | " . $message,
             3,
             'errors.log');
-        parent::__construct();
+        parent::__construct($message);
     }
 }

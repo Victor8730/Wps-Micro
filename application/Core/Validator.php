@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace Core;
 
-use Exceptions\{FailedCopyException,
+use Exceptions\{
+    FailedCopyException,
     FailedCreateDirException,
     NotExistFileException,
     NotExistFileFromUrlException,
@@ -13,17 +14,15 @@ use Exceptions\{FailedCopyException,
     NotValidInputException
 };
 
-class  Validator
+class Validator
 {
     /**
-     * Variable showing if there are errors
-     * @var bool
+     * Indicates whether validation has failed.
      */
     private bool $errors;
 
     /**
-     * Input constructor.
-     * We say that initially there are no mistakes
+     * Initialize the validator state.
      */
     public function __construct()
     {
@@ -31,8 +30,7 @@ class  Validator
     }
 
     /**
-     * Checking for errors
-     * @return bool
+     * Check whether any validation errors were recorded.
      */
     public function isErrors(): bool
     {
@@ -40,8 +38,7 @@ class  Validator
     }
 
     /**
-     * Writing down errors
-     * @param bool $errors
+     * Store the validation error state.
      */
     private function setErrors(bool $errors): void
     {
@@ -49,9 +46,8 @@ class  Validator
     }
 
     /**
-     * Check is the variable empty
-     * @param $val
-     * @return bool
+     * Check whether a value is not empty.
+     *
      * @throws NotValidInputException
      */
     public function checkEmpty($val): bool
@@ -65,9 +61,8 @@ class  Validator
     }
 
     /**
-     * String validation
-     * @param $val
-     * @return string
+     * Validate and sanitize a string value.
+     *
      * @throws NotValidInputException
      */
     public function checkStr($val): string
@@ -81,9 +76,8 @@ class  Validator
     }
 
     /**
-     * Email validation
-     * @param string|null $val
-     * @return string
+     * Validate an email address.
+     *
      * @throws NotValidInputException
      */
     public function checkEmail(?string $val): string
@@ -98,9 +92,8 @@ class  Validator
     }
 
     /**
-     * url validation
-     * @param string|null $val
-     * @return string
+     * Validate a URL.
+     *
      * @throws NotValidInputException
      */
     public function checkUrl(?string $val): string
@@ -115,16 +108,15 @@ class  Validator
     }
 
     /**
-     * Int validate
-     * @param int $val
-     * @return int
+     * Validate an integer value.
+     *
      * @throws NotValidInputException
      */
-    public function checkInt(int $val)
+    public function checkInt($val): int
     {
         $check = filter_var($val, FILTER_VALIDATE_INT);
         if ($check !== false) {
-            return $val;
+            return (int) $val;
         } else {
             $this->setErrors(true);
             throw new NotValidInputException(strval($val));
@@ -132,9 +124,8 @@ class  Validator
     }
 
     /**
-     * Checks the existence of a file
-     * @param string $file
-     * @return false|string
+     * Check whether a file exists.
+     *
      * @throws NotExistFileException
      */
     public function checkFileExist(string $file): bool
@@ -147,9 +138,8 @@ class  Validator
     }
 
     /**
-     * Checking if a method exists in the class
-     * @param object|null $controller
-     * @param string $actionName
+     * Check whether a method exists on a controller.
+     *
      * @throws NotExistMethodException
      */
     public function checkMethodExist(?object $controller, string $actionName): void
@@ -161,9 +151,8 @@ class  Validator
 
 
     /**
-     * Check if a file exists on another site
-     * @param string $url
-     * @return void
+     * Check whether a remote URL returns a successful response.
+     *
      * @throws NotExistFileFromUrlException
      */
     public function checkFileExistFromUrl(string $url): void
@@ -172,7 +161,7 @@ class  Validator
             $url = $this->checkUrl($url);
             $urlHeaders = @get_headers($url);
 
-            if (!is_array($urlHeaders) || !strpos($urlHeaders[0], '200')) {
+            if (!is_array($urlHeaders) || !preg_match('/\s2\d\d\s/', $urlHeaders[0])) {
                 throw new NotExistFileFromUrlException($url);
             }
         } catch (NotValidInputException $e) {
@@ -181,8 +170,8 @@ class  Validator
     }
 
     /**
-     * Checking if a class exists
-     * @param string $className
+     * Check whether a class exists.
+     *
      * @throws NotExistClassException
      */
     public function checkClassExist(string $className): void
@@ -193,10 +182,8 @@ class  Validator
     }
 
     /**
-     * Try copy file from one location to another,
-     * if not luck then throw an exception FailedCopyException
-     * @param string $dirSource
-     * @param string $dirDest
+     * Copy a file or throw an exception on failure.
+     *
      * @throws FailedCopyException
      */
     protected function checkCopyFile(string $dirSource, string $dirDest): void
@@ -207,14 +194,13 @@ class  Validator
     }
 
     /**
-     * We try to create a directory,
-     * if not luck then throw an exception FailedCreateDirException
-     * @param string $dirSource
+     * Create a directory or throw an exception on failure.
+     *
      * @throws FailedCreateDirException
      */
     protected function checkMakeDir(string $dirSource): void
     {
-        if (!mkdir($dirSource)) {
+        if (!mkdir($dirSource, 0775, true) && !is_dir($dirSource)) {
             throw new FailedCreateDirException($dirSource);
         }
     }

@@ -5,23 +5,14 @@ declare(strict_types=1);
 namespace Controllers;
 
 use Core\Controller;
-use Twig\Error\LoaderError;
-use Twig\Error\RuntimeError;
-use Twig\Error\SyntaxError;
-
 
 class ControllerHome extends Controller
 {
     /**
-     * Show page with template home
+     * Render the home page.
      */
-    public function actionIndex()
+    public function actionIndex(): void
     {
-        try {
-            echo $this->view->render('home/' . $this->getNameView());
-        } catch (LoaderError $e) {
-        } catch (RuntimeError $e) {
-        } catch (SyntaxError $e) {
-        }
+        echo $this->view->render('home/' . $this->getNameView());
     }
 }

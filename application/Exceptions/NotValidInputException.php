@@ -6,8 +6,22 @@ namespace Exceptions;
 
 class NotValidInputException extends \Exception
 {
-    public function __construct(?string $string)
+    public function __construct($value)
     {
-        $this->message = "Post or Get data not valid ->".$string."\n";
+        $message = "POST or GET data is not valid -> " . $this->formatValue($value) . "\n";
+
+        parent::__construct($message);
+    }
+
+    /**
+     * Convert invalid input to a readable value.
+     */
+    private function formatValue($value): string
+    {
+        if (is_scalar($value) || $value === null) {
+            return (string) $value;
+        }
+
+        return gettype($value);
     }
 }

@@ -3,25 +3,23 @@ version: "3.3"
 #Docker Services
 services:
    nginx:
-     container_name: redirect-generator-nginx
+     container_name: wps-micro-nginx
      build:
        context: .
        dockerfile: docker/nginx.Dockerfile
      ports:
        - 80:80
-     links:
-       - fpm
      volumes:
-         - ./:/var/www/redirect-generator-docker
+         - ./:/var/www/wps-micro-docker
      networks:
        - app-network
    fpm:
-     container_name: redirect-generator-php-fpm
+     container_name: wps-micro-php-fpm
      build:
        context: .
        dockerfile: docker/fpm.Dockerfile
      volumes:
-       - ./:/var/www/redirect-generator-docker
+       - ./:/var/www/wps-micro-docker
      networks:
        - app-network
 #Docker Networks

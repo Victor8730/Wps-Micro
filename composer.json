@@ -27,6 +27,7 @@
       "Exceptions\\": "application/Exceptions",
       "Controllers\\": "application/Controllers",
       "Models\\": "application/Models",
+      "Install\\": "application/Install",
       "Tests\\": "application/Tests"
     }
   },
@@ -34,7 +35,7 @@
     "phpunit/phpunit": "~9.3.8"
   },
   "scripts": {
-    "post-package-install": "@php application\\Install\\start.php",
-    "post-package-update": "@php application\\Install\\update.php"
+    "post-package-install": "@php application/Install/start.php",
+    "post-package-update": "@php application/Install/update.php"
   }
 }

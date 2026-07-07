@@ -5,41 +5,49 @@ declare(strict_types=1);
 namespace Install;
 
 use Core\Validator;
-use Exceptions\FailedCopyException;
-use Exceptions\FailedCreateDirException;
 
 class Install extends Validator
 {
+    /**
+     * Recursively copy missing files and directories.
+     */
     public function copyFileAndDirectory(string $dirSource, string $dirDestination): void
     {
-        $validator = new Validator();
+        if (!is_dir($dirSource)) {
+            return;
+        }
+
         $dir = opendir($dirSource);
 
+        if ($dir === false) {
+            return;
+        }
+
         while (($file = readdir($dir)) !== false) {
-            if (is_dir($dirSource . "/" . $file) && $file != "." && $file != "..") {
-                try {
-                    if (!file_exists($dirDestination . "/" . $file)) {
-                        $validator->checkMakeDir($dirDestination . "/" . $file);
-                    }
-                } catch (FailedCreateDirException $e) {
+            if (is_dir($dirSource . "/" . $file) && $file !== "." && $file !== "..") {
+                if (!file_exists($dirDestination . "/" . $file)) {
+                    $this->checkMakeDir($dirDestination . "/" . $file);
                 }
+
                 $this->copyFileAndDirectory($dirSource . "/" . $file, $dirDestination . "/" . $file);
             }
+
             if (is_file($dirSource . "/" . $file) && !file_exists($dirDestination . "/" . $file)) {
-                try {
-                    $validator->checkCopyFile($dirSource . "/" . $file, $dirDestination . "/" . $file);
-                } catch (FailedCopyException $e) {
-                }
+                $this->checkCopyFile($dirSource . "/" . $file, $dirDestination . "/" . $file);
             }
         }
+
         closedir($dir);
     }
 
-    public function clearCache($address)
+    /**
+     * Remove generated Twig cache files.
+     */
+    public function clearCache(string $address): void
     {
         if (file_exists($address . '/Cache/')) {
-            foreach (glob($address . '/Cache/*') as $folder) {
-                foreach (glob($folder . '/*') as $file2) {
+            foreach (glob($address . '/Cache/*') ?: [] as $folder) {
+                foreach (glob($folder . '/*') ?: [] as $file2) {
                     unlink($file2);
                 }
                 rmdir($folder);

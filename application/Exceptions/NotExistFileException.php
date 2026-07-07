@@ -7,14 +7,14 @@ namespace Exceptions;
 class NotExistFileException extends \Exception
 {
     /**
-     * NotExistFileException constructor.
-     * @param string $file
+     * Create an exception for a missing file.
      */
     public function __construct(string $file)
     {
-        $this->message = 'File not exist ' . $file;
-        error_log("\n" . date("Y-m-d H:i:s") . " : Script with problem: " . $this->getFile() . " Line with problem: " . $this->getLine() . " | file template '" . $file . "' not exist!",
+        $message = 'File does not exist ' . $file;
+        error_log("\n" . date("Y-m-d H:i:s") . " : Script with problem: " . $this->getFile() . " Line with problem: " . $this->getLine() . " | file template '" . $file . "' does not exist!",
             3,
             'errors.log');
+        parent::__construct($message);
     }
 }

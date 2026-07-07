@@ -6,10 +6,9 @@ namespace Core;
 class Model extends Base
 {
     /**
-     * Validator object
-     * @var object
+     * Input and filesystem validator.
      */
-    public object $validator;
+    public Validator $validator;
 
     public function __construct()
     {

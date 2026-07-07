@@ -7,11 +7,10 @@ namespace Exceptions;
 class NotExistFileFromUrlException extends \Exception
 {
     /**
-     * NotExistFileFromUrlException constructor.
-     * @param string $file
+     * Create an exception for a missing remote file.
      */
     public function __construct(string $file)
     {
-        $this->message = 'File not exist ' . $file;
+        parent::__construct('File does not exist ' . $file);
     }
 }
