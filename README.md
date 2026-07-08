@@ -37,6 +37,7 @@ The Docker setup uses:
 - nginx on host port `80`
 - PHP-FPM
 - project root mounted to `/var/www/wps-micro-docker`
+- nginx document root set to `/var/www/wps-micro-docker/public`
 
 If port `80` is already busy on your machine, change the nginx port mapping in
 `docker-compose.yaml`, for example:
@@ -54,8 +55,8 @@ http://localhost:8080
 
 ## Run with a Local Web Server
 
-Point your web server document root to the project root and route all missing
-files to `index.php`.
+Point your web server document root to the `public` directory and route all
+missing files to `public/index.php`.
 
 Example nginx rule:
 
@@ -65,11 +66,24 @@ location / {
 }
 ```
 
-The app expects `index.php` to be the front controller.
+The app expects `public/index.php` to be the front controller.
+
+For a quick local check without nginx, you can use PHP's built-in server:
+
+```bash
+php -S localhost:8000 -t public public/index.php
+```
+
+Then open:
+
+```text
+http://localhost:8000
+```
 
 ## Project Structure
 
-- `index.php` - front controller
+- `public/index.php` - front controller
+- `public/css`, `public/js`, `public/img`, `public/fonts` - public assets
 - `application/bootstrap.php` - application bootstrap
 - `application/Core` - framework core classes
 - `application/Controllers` - application controllers

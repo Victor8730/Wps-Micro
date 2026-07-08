@@ -5,7 +5,7 @@ declare(strict_types=1);
 session_start();
 
 try {
-    require_once 'application/bootstrap.php';
+    require_once dirname(__DIR__) . '/application/bootstrap.php';
 } catch (\Throwable $e) {
     error_log(
         sprintf(
@@ -16,7 +16,7 @@ try {
             $e->getLine()
         ),
         3,
-        __DIR__ . '/errors.log'
+        dirname(__DIR__) . '/errors.log'
     );
 
     http_response_code(500);

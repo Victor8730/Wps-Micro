@@ -10,5 +10,5 @@ require_once $dirFrontEnd . '/application/vendor/autoload.php';
 
 $update = new Install();
 
-$update->copyFileAndDirectory($dirFrontEnd . '/application/vendor/twbs/bootstrap/dist', $dirFrontEnd);
+$update->copyFileAndDirectory($dirFrontEnd . '/application/vendor/twbs/bootstrap/dist', $dirFrontEnd . '/public');
 $update->clearCache($dirFrontEnd . '/application');
