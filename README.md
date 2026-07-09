@@ -90,3 +90,17 @@ http://localhost:8000
 - `application/Models` - application models
 - `application/Views` - Twig templates
 - `application/Exceptions` - custom exceptions
+
+## Request Lifecycle
+
+The framework core follows a small request/response pipeline:
+
+```text
+Request -> Router -> Dispatcher -> Controller -> Response
+```
+
+- `Request` wraps PHP globals and exposes method, path, headers, query data, and body data.
+- `Router` matches the request path to a controller action.
+- `Dispatcher` creates the controller, executes the action, and normalizes the result.
+- `Controller` actions should return a `Response`.
+- `Response` sends status, headers, and content to the client.

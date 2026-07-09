@@ -7,6 +7,11 @@ namespace Core;
 class Controller extends Base
 {
     /**
+     * Current HTTP request.
+     */
+    protected Request $request;
+
+    /**
      * Twig view renderer.
      */
     protected \Twig\Environment $view;
@@ -19,8 +24,9 @@ class Controller extends Base
     /**
      * Prepare the view renderer and request helpers.
      */
-    public function __construct()
+    public function __construct(?Request $request = null)
     {
+        $this->request = $request ?? Request::fromGlobals();
         $cachePath = Base::PATH_ROOT . '/' . Base::PATH_APPLICATION . '/' . Base::PATH_CACHE;
 
         if (!is_dir($cachePath)) {
@@ -35,8 +41,7 @@ class Controller extends Base
             'auto_reload' => true,
             'autoescape' => 'html',
         ]);
-        $this->isAjax = isset($_SERVER['HTTP_X_REQUESTED_WITH'])
-            && $_SERVER['HTTP_X_REQUESTED_WITH'] === 'XMLHttpRequest';
+        $this->isAjax = $this->request->isAjax();
 
         parent::__construct();
     }
@@ -50,18 +55,30 @@ class Controller extends Base
     }
 
     /**
-     * Send a JSON response for an AJAX request.
+     * Build a JSON response for an AJAX request.
      */
-    protected function ajaxResponse(bool $success = true, string $message = ''): void
+    protected function ajaxResponse(bool $success = true, string $message = ''): JsonResponse
     {
-        $response = [
+        return $this->json([
             'success' => $success,
             'message' => $message,
-        ];
+        ]);
+    }
 
-        header('Content-Type: application/json; charset=utf-8');
+    /**
+     * Render a Twig template response.
+     */
+    protected function render(string $template, array $context = [], int $statusCode = 200): Response
+    {
+        return new Response($this->view->render($template, $context), $statusCode);
+    }
 
-        exit(json_encode($response, JSON_THROW_ON_ERROR));
+    /**
+     * Build a JSON response.
+     */
+    protected function json(array $data = [], int $statusCode = 200): JsonResponse
+    {
+        return new JsonResponse($data, $statusCode);
     }
 
     /**

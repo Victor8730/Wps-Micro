@@ -6,4 +6,6 @@ namespace Core;
 
 require_once __DIR__ . '/vendor/autoload.php';
 
-(new Route())->initialize();
+$request = Request::fromGlobals();
+$response = (new Dispatcher(new Router()))->dispatch($request);
+$response->send();
