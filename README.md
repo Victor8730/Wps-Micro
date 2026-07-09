@@ -18,6 +18,15 @@ composer install
 
 Composer installs dependencies into `application/vendor`.
 
+Create your local environment file:
+
+```bash
+cp .env_example .env
+```
+
+The committed `.env_example` contains default values. The local `.env` file is
+ignored by Git and can be adjusted per machine.
+
 ## Run with Docker
 
 Build and start the application:
@@ -36,6 +45,7 @@ The Docker setup uses:
 
 - nginx on host port `80`
 - PHP-FPM
+- MariaDB on host port `3307`
 - project root mounted to `/var/www/wps-micro-docker`
 - nginx document root set to `/var/www/wps-micro-docker/public`
 
@@ -52,6 +62,10 @@ Then open:
 ```text
 http://localhost:8080
 ```
+
+Inside Docker, the application connects to MariaDB through `DB_HOST=mariadb`.
+If you run PHP directly on your machine and only use the MariaDB container,
+change `DB_HOST` to `127.0.0.1` and keep `DB_PORT=3307`.
 
 ## Run with a Local Web Server
 
@@ -85,6 +99,9 @@ http://localhost:8000
 - `public/index.php` - front controller
 - `public/css`, `public/js`, `public/img`, `public/fonts` - public assets
 - `application/bootstrap.php` - application bootstrap
+- `application/Config/app.php` - application configuration
+- `application/Database/schema.sql` - local database bootstrap schema
+- `.env_example` - environment configuration template
 - `application/Core` - framework core classes
 - `application/Controllers` - application controllers
 - `application/Models` - application models
@@ -104,3 +121,19 @@ Request -> Router -> Dispatcher -> Controller -> Response
 - `Dispatcher` creates the controller, executes the action, and normalizes the result.
 - `Controller` actions should return a `Response`.
 - `Response` sends status, headers, and content to the client.
+
+## Application Kernel
+
+`Kernel` builds the framework infrastructure through a small shared-service
+container. It creates the configured Twig environment, database connection,
+`Router`, and `Dispatcher`; controller dependencies are resolved through
+constructor injection.
+
+Default application settings live in `application/Config/app.php`. Environment
+overrides are loaded from `.env` before the kernel is created.
+
+## Model Layer
+
+Models receive a configured `PDO` connection from the container and should focus
+on application data access. Keep validation in validators, request handling in
+controllers, and business workflows in services as the application grows.

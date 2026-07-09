@@ -7,13 +7,25 @@ namespace Core;
 class Route extends Router
 {
     /**
+     * Create a backward-compatible router instance.
+     */
+    public function __construct(?Config $config = null)
+    {
+        parent::__construct($config ?? new Config([
+            'router' => [
+                'default_controller' => 'home',
+                'default_action' => 'index',
+            ],
+        ]));
+    }
+
+    /**
      * Dispatch the current request through the new request/response pipeline.
      */
     public function initialize(): void
     {
-        $request = Request::fromGlobals();
-        $response = (new Dispatcher($this))->dispatch($request);
-        $response->send();
+        $kernel = Kernel::fromConfigFile(Base::PATH_ROOT . '/' . Base::PATH_APPLICATION . '/Config/app.php');
+        $kernel->handle(Request::fromGlobals())->send();
     }
 
     /**

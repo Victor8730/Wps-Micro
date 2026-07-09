@@ -6,5 +6,8 @@ application/Cache/*
 # composer lock
 composer.lock
 
+# local environment file
+.env
+
 # macOS metadata files
 .DS_Store

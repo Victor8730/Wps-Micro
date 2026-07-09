@@ -24,23 +24,10 @@ class Controller extends Base
     /**
      * Prepare the view renderer and request helpers.
      */
-    public function __construct(?Request $request = null)
+    public function __construct(Request $request, \Twig\Environment $view)
     {
-        $this->request = $request ?? Request::fromGlobals();
-        $cachePath = Base::PATH_ROOT . '/' . Base::PATH_APPLICATION . '/' . Base::PATH_CACHE;
-
-        if (!is_dir($cachePath)) {
-            mkdir($cachePath, 0775, true);
-        }
-
-        $loader = new \Twig\Loader\FilesystemLoader(
-            Base::PATH_ROOT . '/' . Base::PATH_APPLICATION . '/' . Base::PATH_VIEWS
-        );
-        $this->view = new \Twig\Environment($loader, [
-            'cache' => $cachePath,
-            'auto_reload' => true,
-            'autoescape' => 'html',
-        ]);
+        $this->request = $request;
+        $this->view = $view;
         $this->isAjax = $this->request->isAjax();
 
         parent::__construct();

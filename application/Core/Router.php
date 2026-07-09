@@ -11,12 +11,21 @@ class Router
     /**
      * Default controller name.
      */
-    private const DEFAULT_CONTROLLER = 'home';
+    private string $defaultController;
 
     /**
      * Default action name.
      */
-    private const DEFAULT_ACTION = 'index';
+    private string $defaultAction;
+
+    /**
+     * Configure the router.
+     */
+    public function __construct(Config $config)
+    {
+        $this->defaultController = (string) $config->get('router.default_controller', 'home');
+        $this->defaultAction = (string) $config->get('router.default_action', 'index');
+    }
 
     /**
      * Match the request to a controller action.
@@ -26,8 +35,8 @@ class Router
     public function match(Request $request): RouteMatch
     {
         $segments = $this->getSegments($request->getPath());
-        $controllerName = $segments[0] ?? self::DEFAULT_CONTROLLER;
-        $actionName = $segments[1] ?? self::DEFAULT_ACTION;
+        $controllerName = $segments[0] ?? $this->defaultController;
+        $actionName = $segments[1] ?? $this->defaultAction;
 
         if (!$this->isValidRouteSegment($controllerName) || !$this->isValidRouteSegment($actionName)) {
             throw new HttpNotFoundException();

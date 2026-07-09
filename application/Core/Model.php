@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Core;
@@ -6,15 +7,17 @@ namespace Core;
 class Model extends Base
 {
     /**
-     * Input and filesystem validator.
+     * Database connection used by concrete models.
      */
-    public Validator $validator;
+    protected \PDO $db;
 
-    public function __construct()
+    /**
+     * Prepare the model database connection.
+     */
+    public function __construct(\PDO $db)
     {
-        $this->validator = new Validator();
+        $this->db = $db;
 
         parent::__construct();
     }
-
 }

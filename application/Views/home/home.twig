@@ -25,5 +25,16 @@
                 </div>
             </form>
         </div>
+        {% if messages is defined and messages %}
+            <section class="mt-4 text-left">
+                <h2>Stored messages</h2>
+                {% for message in messages %}
+                    <article class="mb-3">
+                        <h3>{{ message.title }}</h3>
+                        <p>{{ message.body }}</p>
+                    </article>
+                {% endfor %}
+            </section>
+        {% endif %}
     </div>
 {% endblock %}

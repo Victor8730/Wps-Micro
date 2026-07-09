@@ -6,8 +6,4 @@ namespace Core\Face;
 
 interface Base
 {
-    /**
-     * Initialize shared framework state.
-     */
-    public function __construct();
 }

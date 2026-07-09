@@ -15,11 +15,17 @@ class Dispatcher
     private Router $router;
 
     /**
+     * Container used to create controller instances.
+     */
+    private Container $container;
+
+    /**
      * Create a dispatcher.
      */
-    public function __construct(Router $router)
+    public function __construct(Router $router, Container $container)
     {
         $this->router = $router;
+        $this->container = $container;
     }
 
     /**
@@ -31,7 +37,7 @@ class Dispatcher
             $match = $this->router->match($request);
             $controllerClass = $match->getControllerClass();
             $actionMethod = $match->getActionMethod();
-            $controller = new $controllerClass($request);
+            $controller = $this->container->make($controllerClass, ['request' => $request]);
 
             return $this->executeAction($controller, $actionMethod);
         } catch (HttpNotFoundException $e) {
@@ -77,7 +83,9 @@ class Dispatcher
     private function notFound(Request $request): Response
     {
         try {
-            return $this->executeAction(new Controller404($request), 'actionIndex')
+            $controller = $this->container->make(Controller404::class, ['request' => $request]);
+
+            return $this->executeAction($controller, 'actionIndex')
                 ->setStatusCode(404);
         } catch (\Throwable $e) {
             return new Response('Page not found', 404);
