@@ -22,12 +22,18 @@ class Controller extends Base
     protected bool $isAjax;
 
     /**
+     * Session storage helper.
+     */
+    protected Session $session;
+
+    /**
      * Prepare the view renderer and request helpers.
      */
-    public function __construct(Request $request, \Twig\Environment $view)
+    public function __construct(Request $request, \Twig\Environment $view, Session $session)
     {
         $this->request = $request;
         $this->view = $view;
+        $this->session = $session;
         $this->isAjax = $this->request->isAjax();
 
         parent::__construct();

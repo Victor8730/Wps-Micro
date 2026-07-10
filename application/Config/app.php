@@ -25,6 +25,7 @@ return [
     'router' => [
         'default_controller' => Env::get('ROUTER_DEFAULT_CONTROLLER', 'home'),
         'default_action' => Env::get('ROUTER_DEFAULT_ACTION', 'index'),
+        'routes_path' => $path('ROUTES_PATH', 'application/Routes/web.php'),
     ],
     'twig' => [
         'views_path' => $path('TWIG_VIEWS_PATH', 'application/Views'),
@@ -40,5 +41,6 @@ return [
         'username' => Env::get('DB_USERNAME', 'root'),
         'password' => Env::get('DB_PASSWORD', ''),
         'charset' => Env::get('DB_CHARSET', 'utf8mb4'),
+        'migrations_path' => $path('DB_MIGRATIONS_PATH', 'application/Database/migrations'),
     ],
 ];

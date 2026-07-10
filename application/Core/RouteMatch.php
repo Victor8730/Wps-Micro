@@ -17,12 +17,18 @@ class RouteMatch
     private string $actionMethod;
 
     /**
+     * Route parameters extracted from the request path.
+     */
+    private array $parameters;
+
+    /**
      * Create a route match value object.
      */
-    public function __construct(string $controllerClass, string $actionMethod)
+    public function __construct(string $controllerClass, string $actionMethod, array $parameters = [])
     {
         $this->controllerClass = $controllerClass;
         $this->actionMethod = $actionMethod;
+        $this->parameters = $parameters;
     }
 
     /**
@@ -39,5 +45,13 @@ class RouteMatch
     public function getActionMethod(): string
     {
         return $this->actionMethod;
+    }
+
+    /**
+     * Return route parameters.
+     */
+    public function getParameters(): array
+    {
+        return $this->parameters;
     }
 }

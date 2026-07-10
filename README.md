@@ -122,6 +122,28 @@ Request -> Router -> Dispatcher -> Controller -> Response
 - `Controller` actions should return a `Response`.
 - `Response` sends status, headers, and content to the client.
 
+## Routing
+
+Explicit routes live in `application/Routes/web.php` and are registered by the
+application kernel:
+
+```php
+$router->get('/', [ControllerHome::class, 'actionIndex']);
+$router->get('/products/{id}', [ControllerProduct::class, 'actionShow']);
+$router->post('/cart/add', [ControllerCart::class, 'actionAdd']);
+```
+
+Route parameters are passed to action arguments with the same name:
+
+```php
+public function actionShow(string $id): Response
+{
+    // ...
+}
+```
+
+Forms can use `_method` to match `PUT`, `PATCH`, and `DELETE` routes.
+
 ## Application Kernel
 
 `Kernel` builds the framework infrastructure through a small shared-service
@@ -137,3 +159,22 @@ overrides are loaded from `.env` before the kernel is created.
 Models receive a configured `PDO` connection from the container and should focus
 on application data access. Keep validation in validators, request handling in
 controllers, and business workflows in services as the application grows.
+
+## Sessions
+
+Controllers receive a shared `Session` service through the base controller. Use
+`$this->session->get()`, `$this->session->set()`, and
+`$this->session->flash()` for simple state such as carts, flash messages, and
+authentication markers.
+
+## Migrations
+
+Database migrations live in `application/Database/migrations`. Run pending
+migrations with:
+
+```bash
+php application/console.php migrate
+```
+
+The Docker database bootstrap schema also records the initial migration, so the
+CLI migrator can be used safely after a fresh `docker compose up`.

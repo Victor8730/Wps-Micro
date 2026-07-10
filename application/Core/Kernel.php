@@ -19,6 +19,7 @@ class Kernel
         $this->container = $container ?? new Container();
         $this->container->instance(Config::class, $config);
         $this->registerServices();
+        $this->registerRoutes();
     }
 
     /**
@@ -84,6 +85,13 @@ class Kernel
             return new Router($config);
         });
 
+        $this->container->set(Session::class, static function (): Session {
+            $session = new Session();
+            $session->start();
+
+            return $session;
+        });
+
         $this->container->set(Database::class, static function (Container $container): Database {
             /** @var Config $config */
             $config = $container->get(Config::class);
@@ -98,11 +106,40 @@ class Kernel
             return $database->connect();
         });
 
+        $this->container->set(Migrator::class, static function (Container $container): Migrator {
+            /** @var \PDO $db */
+            $db = $container->get(\PDO::class);
+            /** @var Config $config */
+            $config = $container->get(Config::class);
+
+            return new Migrator($db, $config);
+        });
+
         $this->container->set(Dispatcher::class, static function (Container $container): Dispatcher {
             /** @var Router $router */
             $router = $container->get(Router::class);
 
             return new Dispatcher($router, $container);
         });
+    }
+
+    /**
+     * Register application routes.
+     */
+    private function registerRoutes(): void
+    {
+        $routesPath = (string) $this->container->get(Config::class)->get('router.routes_path', '');
+
+        if ($routesPath === '' || !is_file($routesPath)) {
+            return;
+        }
+
+        /** @var Router $router */
+        $router = $this->container->get(Router::class);
+        $routes = require $routesPath;
+
+        if (is_callable($routes)) {
+            $routes($router);
+        }
     }
 }

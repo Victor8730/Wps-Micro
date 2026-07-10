@@ -47,7 +47,7 @@ class Request
         array $server = [],
         array $headers = []
     ) {
-        $this->method = strtoupper($method);
+        $this->method = $this->normalizeMethod($method, $request);
         $this->path = $path === '' ? '/' : $path;
         $this->query = $query;
         $this->request = $request;
@@ -106,6 +106,18 @@ class Request
     }
 
     /**
+     * Return an input value from request body first, then query string.
+     *
+     * @param mixed $default
+     *
+     * @return mixed
+     */
+    public function input(string $key, $default = null)
+    {
+        return $this->request[$key] ?? $this->query[$key] ?? $default;
+    }
+
+    /**
      * Return all server parameters.
      */
     public function getServer(): array
@@ -156,5 +168,24 @@ class Request
         }
 
         return $headers;
+    }
+
+    /**
+     * Normalize the HTTP method and support form method overrides.
+     */
+    private function normalizeMethod(string $method, array $request): string
+    {
+        $method = strtoupper($method);
+
+        if ($method === 'POST' && isset($request['_method'])) {
+            $override = strtoupper((string) $request['_method']);
+            $allowed = ['PUT', 'PATCH', 'DELETE'];
+
+            if (in_array($override, $allowed, true)) {
+                return $override;
+            }
+        }
+
+        return $method;
     }
 }

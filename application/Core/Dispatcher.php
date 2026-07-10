@@ -39,7 +39,7 @@ class Dispatcher
             $actionMethod = $match->getActionMethod();
             $controller = $this->container->make($controllerClass, ['request' => $request]);
 
-            return $this->executeAction($controller, $actionMethod);
+            return $this->executeAction($controller, $actionMethod, $match->getParameters());
         } catch (HttpNotFoundException $e) {
             return $this->notFound($request);
         }
@@ -48,12 +48,12 @@ class Dispatcher
     /**
      * Execute a controller action and normalize the result to a response.
      */
-    private function executeAction(object $controller, string $actionMethod): Response
+    private function executeAction(object $controller, string $actionMethod, array $parameters = []): Response
     {
         ob_start();
 
         try {
-            $result = $controller->$actionMethod();
+            $result = $this->callAction($controller, $actionMethod, $parameters);
             $output = ob_get_clean();
         } catch (\Throwable $e) {
             ob_end_clean();
@@ -75,6 +75,33 @@ class Dispatcher
         }
 
         return new Response($output);
+    }
+
+    /**
+     * Call the action with named route parameters.
+     */
+    private function callAction(object $controller, string $actionMethod, array $parameters)
+    {
+        $reflection = new \ReflectionMethod($controller, $actionMethod);
+        $arguments = [];
+
+        foreach ($reflection->getParameters() as $parameter) {
+            $name = $parameter->getName();
+
+            if (array_key_exists($name, $parameters)) {
+                $arguments[] = $parameters[$name];
+                continue;
+            }
+
+            if ($parameter->isDefaultValueAvailable()) {
+                $arguments[] = $parameter->getDefaultValue();
+                continue;
+            }
+
+            throw new HttpNotFoundException();
+        }
+
+        return $reflection->invokeArgs($controller, $arguments);
     }
 
     /**

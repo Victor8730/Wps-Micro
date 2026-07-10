@@ -7,6 +7,7 @@ namespace Controllers;
 use Core\Controller;
 use Core\Request;
 use Core\Response;
+use Core\Session;
 use Models\Home;
 
 class ControllerHome extends Controller
@@ -16,14 +17,14 @@ class ControllerHome extends Controller
      */
     private Home $home;
 
-    /**
+     /**
      * Prepare the controller dependencies.
      */
-    public function __construct(Request $request, \Twig\Environment $view, Home $home)
+    public function __construct(Request $request, \Twig\Environment $view, Session $session, Home $home)
     {
         $this->home = $home;
 
-        parent::__construct($request, $view);
+        parent::__construct($request, $view, $session);
     }
 
     /**
