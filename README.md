@@ -176,5 +176,17 @@ migrations with:
 php application/console.php migrate
 ```
 
+Roll back the last migration with:
+
+```bash
+php application/console.php migrate:rollback
+```
+
+Roll back multiple migrations with:
+
+```bash
+php application/console.php migrate:rollback --steps=2
+```
+
 The Docker database bootstrap schema also records the initial migration, so the
 CLI migrator can be used safely after a fresh `docker compose up`.

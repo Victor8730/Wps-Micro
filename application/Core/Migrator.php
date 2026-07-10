@@ -57,6 +57,36 @@ class Migrator
     }
 
     /**
+     * Roll back applied migrations and return their names.
+     */
+    public function rollback(int $steps = 1): array
+    {
+        $this->ensureMigrationTable();
+        $rolledBack = [];
+        $steps = max(1, $steps);
+
+        foreach ($this->lastMigrations($steps) as $name) {
+            $file = $this->migrationFile($name);
+
+            if ($file === null) {
+                throw new \RuntimeException('Migration file not found: ' . $name);
+            }
+
+            $migration = require $file;
+
+            if (!$migration instanceof Migration) {
+                throw new \RuntimeException('Migration must return a Migration instance: ' . $file);
+            }
+
+            $migration->down($this->db);
+            $this->removeMigration($name);
+            $rolledBack[] = $name;
+        }
+
+        return $rolledBack;
+    }
+
+    /**
      * Ensure the migration tracking table exists.
      */
     private function ensureMigrationTable(): void
@@ -81,6 +111,18 @@ class Migrator
     }
 
     /**
+     * Return last applied migration names.
+     */
+    private function lastMigrations(int $steps): array
+    {
+        $statement = $this->db->prepare('SELECT migration FROM migrations ORDER BY id DESC LIMIT :steps');
+        $statement->bindValue(':steps', $steps, \PDO::PARAM_INT);
+        $statement->execute();
+
+        return $statement->fetchAll(\PDO::FETCH_COLUMN);
+    }
+
+    /**
      * Return migration files sorted by name.
      */
     private function migrationFiles(): array
@@ -96,11 +138,30 @@ class Migrator
     }
 
     /**
+     * Return a migration file path by migration name.
+     */
+    private function migrationFile(string $name): ?string
+    {
+        $file = rtrim($this->path, '/') . '/' . $name . '.php';
+
+        return is_file($file) ? $file : null;
+    }
+
+    /**
      * Record an applied migration.
      */
     private function recordMigration(string $name): void
     {
         $statement = $this->db->prepare('INSERT INTO migrations (migration) VALUES (:migration)');
+        $statement->execute(['migration' => $name]);
+    }
+
+    /**
+     * Remove an applied migration record.
+     */
+    private function removeMigration(string $name): void
+    {
+        $statement = $this->db->prepare('DELETE FROM migrations WHERE migration = :migration');
         $statement->execute(['migration' => $name]);
     }
 }
