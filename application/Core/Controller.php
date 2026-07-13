@@ -27,13 +27,19 @@ class Controller extends Base
     protected Session $session;
 
     /**
+     * CSRF helper.
+     */
+    protected Csrf $csrf;
+
+    /**
      * Prepare the view renderer and request helpers.
      */
-    public function __construct(Request $request, \Twig\Environment $view, Session $session)
+    public function __construct(Request $request, \Twig\Environment $view, Session $session, Csrf $csrf)
     {
         $this->request = $request;
         $this->view = $view;
         $this->session = $session;
+        $this->csrf = $csrf;
         $this->isAjax = $this->request->isAjax();
 
         parent::__construct();
@@ -72,6 +78,14 @@ class Controller extends Base
     protected function json(array $data = [], int $statusCode = 200): JsonResponse
     {
         return new JsonResponse($data, $statusCode);
+    }
+
+    /**
+     * Store current request input for the next response.
+     */
+    protected function flashInput(): void
+    {
+        $this->session->set('_old_input', $this->request->getRequest());
     }
 
     /**

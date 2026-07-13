@@ -71,11 +71,17 @@ class Kernel
 
             $loader = new \Twig\Loader\FilesystemLoader((string) $config->get('twig.views_path'));
 
-            return new \Twig\Environment($loader, [
+            $twig = new \Twig\Environment($loader, [
                 'cache' => $cachePath,
                 'auto_reload' => (bool) $config->get('twig.auto_reload', true),
                 'autoescape' => $config->get('twig.autoescape', 'html'),
             ]);
+
+            /** @var ViewHelpers $helpers */
+            $helpers = $container->get(ViewHelpers::class);
+            $helpers->register($twig);
+
+            return $twig;
         });
 
         $this->container->set(Router::class, static function (Container $container): Router {
@@ -90,6 +96,24 @@ class Kernel
             $session->start();
 
             return $session;
+        });
+
+        $this->container->set(Csrf::class, static function (Container $container): Csrf {
+            /** @var Session $session */
+            $session = $container->get(Session::class);
+
+            return new Csrf($session);
+        });
+
+        $this->container->set(ViewHelpers::class, static function (Container $container): ViewHelpers {
+            /** @var Config $config */
+            $config = $container->get(Config::class);
+            /** @var Csrf $csrf */
+            $csrf = $container->get(Csrf::class);
+            /** @var Session $session */
+            $session = $container->get(Session::class);
+
+            return new ViewHelpers($config, $csrf, $session);
         });
 
         $this->container->set(Database::class, static function (Container $container): Database {
@@ -118,8 +142,10 @@ class Kernel
         $this->container->set(Dispatcher::class, static function (Container $container): Dispatcher {
             /** @var Router $router */
             $router = $container->get(Router::class);
+            /** @var Csrf $csrf */
+            $csrf = $container->get(Csrf::class);
 
-            return new Dispatcher($router, $container);
+            return new Dispatcher($router, $container, $csrf);
         });
     }
 

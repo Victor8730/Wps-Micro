@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Core;
 
 use Controllers\Controller404;
+use Exceptions\CsrfTokenMismatchException;
 use Exceptions\HttpNotFoundException;
 
 class Dispatcher
@@ -20,12 +21,18 @@ class Dispatcher
     private Container $container;
 
     /**
+     * CSRF request guard.
+     */
+    private Csrf $csrf;
+
+    /**
      * Create a dispatcher.
      */
-    public function __construct(Router $router, Container $container)
+    public function __construct(Router $router, Container $container, Csrf $csrf)
     {
         $this->router = $router;
         $this->container = $container;
+        $this->csrf = $csrf;
     }
 
     /**
@@ -34,6 +41,8 @@ class Dispatcher
     public function dispatch(Request $request): Response
     {
         try {
+            $this->guardCsrf($request);
+
             $match = $this->router->match($request);
             $controllerClass = $match->getControllerClass();
             $actionMethod = $match->getActionMethod();
@@ -42,6 +51,24 @@ class Dispatcher
             return $this->executeAction($controller, $actionMethod, $match->getParameters());
         } catch (HttpNotFoundException $e) {
             return $this->notFound($request);
+        } catch (CsrfTokenMismatchException $e) {
+            return new Response('CSRF token mismatch.', 419);
+        }
+    }
+
+    /**
+     * Protect unsafe HTTP methods from cross-site request forgery.
+     *
+     * @throws CsrfTokenMismatchException
+     */
+    private function guardCsrf(Request $request): void
+    {
+        if (!in_array($request->getMethod(), ['POST', 'PUT', 'PATCH', 'DELETE'], true)) {
+            return;
+        }
+
+        if (!$this->csrf->validate($request)) {
+            throw new CsrfTokenMismatchException();
         }
     }
 

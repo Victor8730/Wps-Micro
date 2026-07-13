@@ -99,6 +99,7 @@ http://localhost:8000
 - `public/index.php` - front controller
 - `public/css`, `public/js`, `public/img`, `public/fonts` - public assets
 - `application/bootstrap.php` - application bootstrap
+- `application/console.php` - console command entry point
 - `application/Config/app.php` - application configuration
 - `application/Database/schema.sql` - local database bootstrap schema
 - `.env_example` - environment configuration template
@@ -144,6 +145,14 @@ public function actionShow(string $id): Response
 
 Forms can use `_method` to match `PUT`, `PATCH`, and `DELETE` routes.
 
+Unsafe form methods require a CSRF token:
+
+```twig
+<form method="post" action="{{ url('/cart/add') }}">
+    {{ csrf_field() }}
+</form>
+```
+
 ## Application Kernel
 
 `Kernel` builds the framework infrastructure through a small shared-service
@@ -166,6 +175,21 @@ Controllers receive a shared `Session` service through the base controller. Use
 `$this->session->get()`, `$this->session->set()`, and
 `$this->session->flash()` for simple state such as carts, flash messages, and
 authentication markers.
+
+## Views
+
+Twig templates include small helpers for common website work:
+
+```twig
+{{ asset('css/app.css') }}
+{{ url('/products') }}
+{{ csrf_token() }}
+{{ csrf_field() }}
+{{ old('email') }}
+{{ flash('success') }}
+```
+
+CSRF protection is enabled for `POST`, `PUT`, `PATCH`, and `DELETE` requests.
 
 ## Migrations
 
@@ -190,3 +214,14 @@ php application/console.php migrate:rollback --steps=2
 
 The Docker database bootstrap schema also records the initial migration, so the
 CLI migrator can be used safely after a fresh `docker compose up`.
+
+## Console
+
+The old installer has been replaced by console commands:
+
+```bash
+php application/console.php list
+php application/console.php make:controller Product
+php application/console.php make:model Product
+php application/console.php make:migration create_products_table
+```
