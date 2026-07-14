@@ -22,6 +22,16 @@ class ViewHelpers
     private Session $session;
 
     /**
+     * Cached validation errors for the current render.
+     */
+    private ?array $errors = null;
+
+    /**
+     * Cached old input for the current render.
+     */
+    private ?array $oldInput = null;
+
+    /**
      * Create view helpers.
      */
     public function __construct(Config $config, Csrf $csrf, Session $session)
@@ -42,6 +52,8 @@ class ViewHelpers
         $twig->addFunction(new \Twig\TwigFunction('csrf_field', [$this->csrf, 'field'], ['is_safe' => ['html']]));
         $twig->addFunction(new \Twig\TwigFunction('old', [$this, 'old']));
         $twig->addFunction(new \Twig\TwigFunction('flash', [$this, 'flash']));
+        $twig->addFunction(new \Twig\TwigFunction('errors', [$this, 'errors']));
+        $twig->addFunction(new \Twig\TwigFunction('error', [$this, 'error']));
     }
 
     /**
@@ -69,7 +81,7 @@ class ViewHelpers
      */
     public function old(string $key, $default = null)
     {
-        $old = $this->session->get('_old_input', []);
+        $old = $this->oldInput();
 
         return is_array($old) && array_key_exists($key, $old) ? $old[$key] : $default;
     }
@@ -84,6 +96,42 @@ class ViewHelpers
     public function flash(string $key, $default = null)
     {
         return $this->session->pullFlash($key, $default);
+    }
+
+    /**
+     * Return validation errors.
+     */
+    public function errors(): array
+    {
+        if ($this->errors === null) {
+            $errors = $this->session->pullFlash('errors', []);
+            $this->errors = is_array($errors) ? $errors : [];
+        }
+
+        return $this->errors;
+    }
+
+    /**
+     * Return the first validation error for a field.
+     */
+    public function error(string $key, ?string $default = null): ?string
+    {
+        $errors = $this->errors();
+
+        return isset($errors[$key][0]) ? (string) $errors[$key][0] : $default;
+    }
+
+    /**
+     * Return cached old input.
+     */
+    private function oldInput(): array
+    {
+        if ($this->oldInput === null) {
+            $old = $this->session->pullFlash('old_input', []);
+            $this->oldInput = is_array($old) ? $old : [];
+        }
+
+        return $this->oldInput;
     }
 
     /**

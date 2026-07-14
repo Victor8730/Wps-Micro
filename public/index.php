@@ -2,8 +2,6 @@
 
 declare(strict_types=1);
 
-session_start();
-
 try {
     require_once dirname(__DIR__) . '/application/bootstrap.php';
 } catch (\Throwable $e) {

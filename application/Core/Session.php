@@ -15,7 +15,19 @@ class Session
             return;
         }
 
-        session_start();
+        if (session_status() === PHP_SESSION_DISABLED) {
+            throw new \RuntimeException('PHP sessions are disabled.');
+        }
+
+        if (headers_sent($file, $line)) {
+            throw new \RuntimeException(
+                sprintf('Unable to start the session after output was sent in %s:%d.', $file, $line)
+            );
+        }
+
+        if (!session_start()) {
+            throw new \RuntimeException('Unable to start the PHP session.');
+        }
     }
 
     /**

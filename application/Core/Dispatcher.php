@@ -7,6 +7,8 @@ namespace Core;
 use Controllers\Controller404;
 use Exceptions\CsrfTokenMismatchException;
 use Exceptions\HttpNotFoundException;
+use Exceptions\MethodNotAllowedException;
+use Exceptions\ValidationException;
 
 class Dispatcher
 {
@@ -21,18 +23,35 @@ class Dispatcher
     private Container $container;
 
     /**
-     * CSRF request guard.
+     * Middleware pipeline.
      */
-    private Csrf $csrf;
+    private MiddlewarePipeline $pipeline;
+
+    /**
+     * Middleware executed before route matching.
+     */
+    private array $globalMiddleware;
+
+    /**
+     * Middleware executed after a route is matched.
+     */
+    private array $routeMiddleware;
 
     /**
      * Create a dispatcher.
      */
-    public function __construct(Router $router, Container $container, Csrf $csrf)
-    {
+    public function __construct(
+        Router $router,
+        Container $container,
+        MiddlewarePipeline $pipeline,
+        array $globalMiddleware = [],
+        array $routeMiddleware = []
+    ) {
         $this->router = $router;
         $this->container = $container;
-        $this->csrf = $csrf;
+        $this->pipeline = $pipeline;
+        $this->globalMiddleware = $globalMiddleware;
+        $this->routeMiddleware = $routeMiddleware;
     }
 
     /**
@@ -40,36 +59,70 @@ class Dispatcher
      */
     public function dispatch(Request $request): Response
     {
+        return $this->handleExceptions($request, function () use ($request): Response {
+            return $this->pipeline->handle(
+                $request,
+                $this->globalMiddleware,
+                function (Request $request): Response {
+                    return $this->handleExceptions($request, function () use ($request): Response {
+                        return $this->dispatchRoute($request);
+                    });
+                }
+            );
+        });
+    }
+
+    /**
+     * Match and execute a route through its middleware.
+     */
+    private function dispatchRoute(Request $request): Response
+    {
+        $match = $this->router->match($request);
+
+        return $this->pipeline->handle(
+            $request,
+            array_merge($this->routeMiddleware, $match->getMiddleware()),
+            function (Request $request) use ($match): Response {
+                $controller = $this->container->make(
+                    $match->getControllerClass(),
+                    ['request' => $request]
+                );
+
+                return $this->executeAction(
+                    $controller,
+                    $match->getActionMethod(),
+                    $match->getParameters()
+                );
+            }
+        );
+    }
+
+    /**
+     * Convert known HTTP exceptions into responses.
+     */
+    private function handleExceptions(Request $request, callable $handler): Response
+    {
         try {
-            $this->guardCsrf($request);
-
-            $match = $this->router->match($request);
-            $controllerClass = $match->getControllerClass();
-            $actionMethod = $match->getActionMethod();
-            $controller = $this->container->make($controllerClass, ['request' => $request]);
-
-            return $this->executeAction($controller, $actionMethod, $match->getParameters());
+            return $handler();
+        } catch (MethodNotAllowedException $e) {
+            return $this->methodNotAllowed($e);
         } catch (HttpNotFoundException $e) {
             return $this->notFound($request);
         } catch (CsrfTokenMismatchException $e) {
             return new Response('CSRF token mismatch.', 419);
+        } catch (ValidationException $e) {
+            return $this->validationFailed($request, $e);
         }
     }
 
     /**
-     * Protect unsafe HTTP methods from cross-site request forgery.
-     *
-     * @throws CsrfTokenMismatchException
+     * Build a method not allowed response.
      */
-    private function guardCsrf(Request $request): void
+    private function methodNotAllowed(MethodNotAllowedException $exception): Response
     {
-        if (!in_array($request->getMethod(), ['POST', 'PUT', 'PATCH', 'DELETE'], true)) {
-            return;
-        }
-
-        if (!$this->csrf->validate($request)) {
-            throw new CsrfTokenMismatchException();
-        }
+        return new Response('Method not allowed', 405, [
+            'Allow' => implode(', ', $exception->getAllowedMethods()),
+        ]);
     }
 
     /**
@@ -144,5 +197,24 @@ class Dispatcher
         } catch (\Throwable $e) {
             return new Response('Page not found', 404);
         }
+    }
+
+    /**
+     * Build a validation failure response.
+     */
+    private function validationFailed(Request $request, ValidationException $exception): Response
+    {
+        /** @var Session $session */
+        $session = $this->container->get(Session::class);
+        $session->flash('errors', $exception->errors());
+        $session->flash('old_input', $request->getRequest());
+
+        if ($request->isAjax()) {
+            return new JsonResponse(['errors' => $exception->errors()], 422);
+        }
+
+        $target = $request->getHeader('Referer', $request->getPath()) ?: '/';
+
+        return new RedirectResponse($target);
     }
 }

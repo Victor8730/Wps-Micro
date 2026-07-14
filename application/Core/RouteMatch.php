@@ -22,13 +22,23 @@ class RouteMatch
     private array $parameters;
 
     /**
+     * Middleware assigned to the matched route.
+     */
+    private array $middleware;
+
+    /**
      * Create a route match value object.
      */
-    public function __construct(string $controllerClass, string $actionMethod, array $parameters = [])
-    {
+    public function __construct(
+        string $controllerClass,
+        string $actionMethod,
+        array $parameters = [],
+        array $middleware = []
+    ) {
         $this->controllerClass = $controllerClass;
         $this->actionMethod = $actionMethod;
         $this->parameters = $parameters;
+        $this->middleware = $middleware;
     }
 
     /**
@@ -53,5 +63,13 @@ class RouteMatch
     public function getParameters(): array
     {
         return $this->parameters;
+    }
+
+    /**
+     * Return route middleware.
+     */
+    public function getMiddleware(): array
+    {
+        return $this->middleware;
     }
 }

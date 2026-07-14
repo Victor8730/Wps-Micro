@@ -106,6 +106,14 @@ class Request
     }
 
     /**
+     * Return all input data.
+     */
+    public function all(): array
+    {
+        return array_merge($this->query, $this->request);
+    }
+
+    /**
      * Return an input value from request body first, then query string.
      *
      * @param mixed $default

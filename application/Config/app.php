@@ -27,6 +27,12 @@ return [
         'default_action' => Env::get('ROUTER_DEFAULT_ACTION', 'index'),
         'routes_path' => $path('ROUTES_PATH', 'application/Routes/web.php'),
     ],
+    'middleware' => [
+        'global' => [],
+        'route' => [
+            \Core\Middleware\CsrfMiddleware::class,
+        ],
+    ],
     'twig' => [
         'views_path' => $path('TWIG_VIEWS_PATH', 'application/Views'),
         'cache_path' => $path('TWIG_CACHE_PATH', 'application/Cache'),

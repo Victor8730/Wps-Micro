@@ -41,10 +41,17 @@ class Kernel
      */
     public function handle(Request $request): Response
     {
-        /** @var Dispatcher $dispatcher */
-        $dispatcher = $this->container->get(Dispatcher::class);
+        try {
+            /** @var Dispatcher $dispatcher */
+            $dispatcher = $this->container->get(Dispatcher::class);
 
-        return $dispatcher->dispatch($request);
+            return $dispatcher->dispatch($request);
+        } catch (\Throwable $exception) {
+            /** @var ErrorHandler $handler */
+            $handler = $this->container->get(ErrorHandler::class);
+
+            return $handler->render($exception);
+        }
     }
 
     /**
@@ -91,11 +98,19 @@ class Kernel
             return new Router($config);
         });
 
-        $this->container->set(Session::class, static function (): Session {
-            $session = new Session();
-            $session->start();
+        $this->container->set(MiddlewarePipeline::class, static function (Container $container): MiddlewarePipeline {
+            return new MiddlewarePipeline($container);
+        });
 
-            return $session;
+        $this->container->set(ErrorHandler::class, static function (Container $container): ErrorHandler {
+            /** @var Config $config */
+            $config = $container->get(Config::class);
+
+            return new ErrorHandler($config);
+        });
+
+        $this->container->set(Session::class, static function (): Session {
+            return new Session();
         });
 
         $this->container->set(Csrf::class, static function (Container $container): Csrf {
@@ -142,10 +157,18 @@ class Kernel
         $this->container->set(Dispatcher::class, static function (Container $container): Dispatcher {
             /** @var Router $router */
             $router = $container->get(Router::class);
-            /** @var Csrf $csrf */
-            $csrf = $container->get(Csrf::class);
+            /** @var MiddlewarePipeline $pipeline */
+            $pipeline = $container->get(MiddlewarePipeline::class);
+            /** @var Config $config */
+            $config = $container->get(Config::class);
 
-            return new Dispatcher($router, $container, $csrf);
+            return new Dispatcher(
+                $router,
+                $container,
+                $pipeline,
+                (array) $config->get('middleware.global', []),
+                (array) $config->get('middleware.route', [])
+            );
         });
     }
 

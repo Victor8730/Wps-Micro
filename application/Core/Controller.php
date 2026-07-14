@@ -32,14 +32,25 @@ class Controller extends Base
     protected Csrf $csrf;
 
     /**
+     * Request validator.
+     */
+    protected Validator $validator;
+
+    /**
      * Prepare the view renderer and request helpers.
      */
-    public function __construct(Request $request, \Twig\Environment $view, Session $session, Csrf $csrf)
-    {
+    public function __construct(
+        Request $request,
+        \Twig\Environment $view,
+        Session $session,
+        Csrf $csrf,
+        Validator $validator
+    ) {
         $this->request = $request;
         $this->view = $view;
         $this->session = $session;
         $this->csrf = $csrf;
+        $this->validator = $validator;
         $this->isAjax = $this->request->isAjax();
 
         parent::__construct();
@@ -81,11 +92,29 @@ class Controller extends Base
     }
 
     /**
+     * Validate current request input.
+     *
+     * @throws \Exceptions\ValidationException
+     */
+    protected function validate(array $rules): array
+    {
+        return $this->validator->validate($this->request->all(), $rules);
+    }
+
+    /**
+     * Build a redirect response.
+     */
+    protected function redirect(string $url): RedirectResponse
+    {
+        return new RedirectResponse($url);
+    }
+
+    /**
      * Store current request input for the next response.
      */
     protected function flashInput(): void
     {
-        $this->session->set('_old_input', $this->request->getRequest());
+        $this->session->flash('old_input', $this->request->getRequest());
     }
 
     /**

@@ -114,11 +114,13 @@ http://localhost:8000
 The framework core follows a small request/response pipeline:
 
 ```text
-Request -> Router -> Dispatcher -> Controller -> Response
+Request -> Global Middleware -> Router -> Route Middleware -> Controller -> Response
 ```
 
 - `Request` wraps PHP globals and exposes method, path, headers, query data, and body data.
+- Global middleware runs before route matching.
 - `Router` matches the request path to a controller action.
+- Route middleware runs after matching and before the controller is created.
 - `Dispatcher` creates the controller, executes the action, and normalizes the result.
 - `Controller` actions should return a `Response`.
 - `Response` sends status, headers, and content to the client.
@@ -144,6 +146,9 @@ public function actionShow(string $id): Response
 ```
 
 Forms can use `_method` to match `PUT`, `PATCH`, and `DELETE` routes.
+When a path exists for another HTTP method, the framework returns a `405 Method
+Not Allowed` response with an `Allow` header instead of using convention-based
+routing.
 
 Unsafe form methods require a CSRF token:
 
@@ -152,6 +157,28 @@ Unsafe form methods require a CSRF token:
     {{ csrf_field() }}
 </form>
 ```
+
+## Middleware
+
+Global and default route middleware are configured in `application/Config/app.php`.
+Route-level middleware can also be attached directly in
+`application/Routes/web.php`:
+
+```php
+$router
+    ->post('/cart/add', [ControllerCart::class, 'actionAdd'])
+    ->middleware(App\Middleware\AuthMiddleware::class);
+```
+
+Middleware classes implement `Core\Middleware` and receive the current
+`Request` plus the next layer callback.
+
+Global middleware wraps route matching and error responses. Route middleware
+runs after a route is matched, while the controller is created only after all
+middleware passes the request forward.
+
+CSRF protection is registered as default route middleware, so routing errors
+such as `404` and `405` are resolved before a session is opened.
 
 ## Application Kernel
 
@@ -169,12 +196,31 @@ Models receive a configured `PDO` connection from the container and should focus
 on application data access. Keep validation in validators, request handling in
 controllers, and business workflows in services as the application grows.
 
+## Validation
+
+Controllers can validate request input with simple rules:
+
+```php
+$data = $this->validate([
+    'email' => 'required|email',
+    'name' => 'required|min:2|max:255',
+]);
+```
+
+Available rules include `required`, `nullable`, `email`, `integer`, `numeric`,
+`url`, `min`, `max`, and `in`. On validation failure the framework flashes
+errors and old input, then redirects back. AJAX requests receive a `422` JSON
+response.
+
 ## Sessions
 
 Controllers receive a shared `Session` service through the base controller. Use
 `$this->session->get()`, `$this->session->set()`, and
 `$this->session->flash()` for simple state such as carts, flash messages, and
 authentication markers.
+
+The PHP session starts lazily on the first session read or write. Requests that
+do not use session data avoid opening the session and acquiring its lock.
 
 ## Views
 
@@ -187,9 +233,16 @@ Twig templates include small helpers for common website work:
 {{ csrf_field() }}
 {{ old('email') }}
 {{ flash('success') }}
+{{ error('email') }}
 ```
 
 CSRF protection is enabled for `POST`, `PUT`, `PATCH`, and `DELETE` requests.
+
+## Error Handling
+
+When `APP_DEBUG=true`, uncaught exceptions render a small debug page with the
+exception class, message, file, line, and trace. In production, set
+`APP_DEBUG=false` to return a generic `500` response.
 
 ## Migrations
 

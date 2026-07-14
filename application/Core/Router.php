@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Core;
 
 use Exceptions\HttpNotFoundException;
+use Exceptions\MethodNotAllowedException;
 
 class Router
 {
@@ -37,7 +38,7 @@ class Router
      *
      * @param array|string $handler
      */
-    public function get(string $path, $handler): self
+    public function get(string $path, $handler): RouteDefinition
     {
         return $this->add('GET', $path, $handler);
     }
@@ -47,7 +48,7 @@ class Router
      *
      * @param array|string $handler
      */
-    public function post(string $path, $handler): self
+    public function post(string $path, $handler): RouteDefinition
     {
         return $this->add('POST', $path, $handler);
     }
@@ -57,7 +58,7 @@ class Router
      *
      * @param array|string $handler
      */
-    public function put(string $path, $handler): self
+    public function put(string $path, $handler): RouteDefinition
     {
         return $this->add('PUT', $path, $handler);
     }
@@ -67,7 +68,7 @@ class Router
      *
      * @param array|string $handler
      */
-    public function patch(string $path, $handler): self
+    public function patch(string $path, $handler): RouteDefinition
     {
         return $this->add('PATCH', $path, $handler);
     }
@@ -77,7 +78,7 @@ class Router
      *
      * @param array|string $handler
      */
-    public function delete(string $path, $handler): self
+    public function delete(string $path, $handler): RouteDefinition
     {
         return $this->add('DELETE', $path, $handler);
     }
@@ -87,17 +88,27 @@ class Router
      *
      * @param array|string $handler
      */
-    public function add($methods, string $path, $handler): self
+    public function add($methods, string $path, $handler): RouteDefinition
     {
+        $indexes = [];
+
         foreach ((array) $methods as $method) {
+            $index = count($this->routes);
             $this->routes[] = [
                 'method' => strtoupper((string) $method),
                 'path' => $this->normalizePath($path),
                 'handler' => $handler,
+                'middleware' => [],
             ];
+
+            $indexes[] = $index;
         }
 
-        return $this;
+        if ($indexes === []) {
+            throw new \InvalidArgumentException('At least one HTTP method is required.');
+        }
+
+        return new RouteDefinition($this->routes, $indexes);
     }
 
     /**
@@ -118,10 +129,36 @@ class Router
                 continue;
             }
 
-            return $this->buildRouteMatch($route['handler'], $parameters);
+            return $this->buildRouteMatch($route['handler'], $parameters, $route['middleware']);
+        }
+
+        $allowedMethods = $this->allowedMethods($request->getPath(), $request->getMethod());
+
+        if ($allowedMethods !== []) {
+            throw new MethodNotAllowedException($allowedMethods);
         }
 
         return $this->matchConventionRoute($request);
+    }
+
+    /**
+     * Return methods registered for a path other than the current method.
+     */
+    private function allowedMethods(string $path, string $currentMethod): array
+    {
+        $methods = [];
+
+        foreach ($this->routes as $route) {
+            if ($route['method'] === $currentMethod) {
+                continue;
+            }
+
+            if ($this->matchPath($route['path'], $path) !== null) {
+                $methods[] = $route['method'];
+            }
+        }
+
+        return array_values(array_unique($methods));
     }
 
     /**
@@ -156,7 +193,7 @@ class Router
      *
      * @throws HttpNotFoundException
      */
-    private function buildRouteMatch($handler, array $parameters): RouteMatch
+    private function buildRouteMatch($handler, array $parameters, array $middleware): RouteMatch
     {
         if (is_string($handler)) {
             $handlerParts = explode('@', $handler, 2);
@@ -177,7 +214,12 @@ class Router
             throw new HttpNotFoundException();
         }
 
-        return new RouteMatch($controllerClass, $actionMethod, $parameters);
+        return new RouteMatch(
+            $controllerClass,
+            $actionMethod,
+            $parameters,
+            $middleware
+        );
     }
 
     /**
