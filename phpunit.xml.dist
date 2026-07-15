@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/12.5/phpunit.xsd"
+         bootstrap="application/vendor/autoload.php"
+         cacheDirectory="application/Cache/phpunit"
+         colors="true"
+         failOnDeprecation="true"
+         failOnWarning="true">
+    <testsuites>
+        <testsuite name="Framework">
+            <directory>application/Tests</directory>
+        </testsuite>
+    </testsuites>
+    <source>
+        <include>
+            <directory>application/Core</directory>
+            <directory>application/Exceptions</directory>
+        </include>
+    </source>
+</phpunit>

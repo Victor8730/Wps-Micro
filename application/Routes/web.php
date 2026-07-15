@@ -7,4 +7,5 @@ use Core\Router;
 
 return static function (Router $router): void {
     $router->get('/', [ControllerHome::class, 'actionIndex']);
+    $router->post('/', [ControllerHome::class, 'actionIndex']);
 };

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Core;
 
-class Model extends Base
+class Model
 {
     /**
      * Database connection used by concrete models.
@@ -17,7 +17,5 @@ class Model extends Base
     public function __construct(\PDO $db)
     {
         $this->db = $db;
-
-        parent::__construct();
     }
 }

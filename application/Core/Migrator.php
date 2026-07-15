@@ -91,6 +91,20 @@ class Migrator
      */
     private function ensureMigrationTable(): void
     {
+        $driver = $this->db->getAttribute(\PDO::ATTR_DRIVER_NAME);
+
+        if ($driver === 'sqlite') {
+            $this->db->exec(
+                'CREATE TABLE IF NOT EXISTS migrations (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    migration VARCHAR(255) NOT NULL UNIQUE,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )'
+            );
+
+            return;
+        }
+
         $this->db->exec(
             'CREATE TABLE IF NOT EXISTS migrations (
                 id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,

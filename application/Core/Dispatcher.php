@@ -28,6 +28,11 @@ class Dispatcher
     private MiddlewarePipeline $pipeline;
 
     /**
+     * Error handler for uncaught application exceptions.
+     */
+    private ErrorHandler $errorHandler;
+
+    /**
      * Middleware executed before route matching.
      */
     private array $globalMiddleware;
@@ -44,12 +49,14 @@ class Dispatcher
         Router $router,
         Container $container,
         MiddlewarePipeline $pipeline,
+        ErrorHandler $errorHandler,
         array $globalMiddleware = [],
         array $routeMiddleware = []
     ) {
         $this->router = $router;
         $this->container = $container;
         $this->pipeline = $pipeline;
+        $this->errorHandler = $errorHandler;
         $this->globalMiddleware = $globalMiddleware;
         $this->routeMiddleware = $routeMiddleware;
     }
@@ -83,10 +90,7 @@ class Dispatcher
             $request,
             array_merge($this->routeMiddleware, $match->getMiddleware()),
             function (Request $request) use ($match): Response {
-                $controller = $this->container->make(
-                    $match->getControllerClass(),
-                    ['request' => $request]
-                );
+                $controller = $this->container->make($match->getControllerClass());
 
                 return $this->executeAction(
                     $controller,
@@ -105,24 +109,44 @@ class Dispatcher
         try {
             return $handler();
         } catch (MethodNotAllowedException $e) {
-            return $this->methodNotAllowed($e);
+            return $this->methodNotAllowed($request, $e);
         } catch (HttpNotFoundException $e) {
             return $this->notFound($request);
         } catch (CsrfTokenMismatchException $e) {
-            return new Response('CSRF token mismatch.', 419);
+            return $this->clientError($request, 'CSRF token mismatch.', 419);
         } catch (ValidationException $e) {
             return $this->validationFailed($request, $e);
+        } catch (\Throwable $exception) {
+            return $this->errorHandler->render($exception, $request);
         }
     }
 
     /**
      * Build a method not allowed response.
      */
-    private function methodNotAllowed(MethodNotAllowedException $exception): Response
+    private function methodNotAllowed(Request $request, MethodNotAllowedException $exception): Response
     {
-        return new Response('Method not allowed', 405, [
+        return $this->clientError($request, 'Method not allowed', 405, [
             'Allow' => implode(', ', $exception->getAllowedMethods()),
         ]);
+    }
+
+    /**
+     * Build a text or JSON client error response.
+     */
+    private function clientError(
+        Request $request,
+        string $message,
+        int $statusCode,
+        array $headers = []
+    ): Response {
+        if ($request->expectsJson()) {
+            return new JsonResponse(['message' => $message], $statusCode, $headers);
+        }
+
+        $headers['Content-Type'] = $headers['Content-Type'] ?? 'text/plain; charset=UTF-8';
+
+        return new Response($message, $statusCode, $headers);
     }
 
     /**
@@ -189,8 +213,13 @@ class Dispatcher
      */
     private function notFound(Request $request): Response
     {
+        if ($request->expectsJson()) {
+            return $this->clientError($request, 'Page not found', 404);
+        }
+
         try {
-            $controller = $this->container->make(Controller404::class, ['request' => $request]);
+            $this->container->instance(Request::class, $request);
+            $controller = $this->container->make(Controller404::class);
 
             return $this->executeAction($controller, 'actionIndex')
                 ->setStatusCode(404);
@@ -207,14 +236,32 @@ class Dispatcher
         /** @var Session $session */
         $session = $this->container->get(Session::class);
         $session->flash('errors', $exception->errors());
-        $session->flash('old_input', $request->getRequest());
+        $session->flash('old_input', $this->flashableInput($request));
 
-        if ($request->isAjax()) {
+        if ($request->expectsJson()) {
             return new JsonResponse(['errors' => $exception->errors()], 422);
         }
 
         $target = $request->getHeader('Referer', $request->getPath()) ?: '/';
 
         return new RedirectResponse($target);
+    }
+
+    /**
+     * Remove tokens and password fields before flashing request input.
+     */
+    private function flashableInput(Request $request): array
+    {
+        $input = $request->getRequest();
+
+        foreach (array_keys($input) as $key) {
+            $normalized = strtolower(str_replace(['-', '.'], '_', (string) $key));
+
+            if (in_array($normalized, ['_token', '_method'], true) || str_contains($normalized, 'password')) {
+                unset($input[$key]);
+            }
+        }
+
+        return $input;
     }
 }

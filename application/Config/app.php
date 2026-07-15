@@ -5,6 +5,9 @@ declare(strict_types=1);
 use Core\Env;
 
 $rootPath = dirname(__DIR__, 2);
+$environment = (string) Env::get('APP_ENV', 'production');
+$debug = Env::bool('APP_DEBUG', false);
+$isProduction = $environment === 'production';
 $path = static function (string $key, string $default) use ($rootPath): string {
     $value = (string) Env::get($key, $default);
 
@@ -18,13 +21,11 @@ $path = static function (string $key, string $default) use ($rootPath): string {
 return [
     'app' => [
         'name' => Env::get('APP_NAME', 'WPS Micro'),
-        'env' => Env::get('APP_ENV', 'local'),
-        'debug' => Env::bool('APP_DEBUG', true),
+        'env' => $environment,
+        'debug' => $debug,
         'url' => Env::get('APP_URL', 'http://localhost:8000'),
     ],
     'router' => [
-        'default_controller' => Env::get('ROUTER_DEFAULT_CONTROLLER', 'home'),
-        'default_action' => Env::get('ROUTER_DEFAULT_ACTION', 'index'),
         'routes_path' => $path('ROUTES_PATH', 'application/Routes/web.php'),
     ],
     'middleware' => [
@@ -33,10 +34,22 @@ return [
             \Core\Middleware\CsrfMiddleware::class,
         ],
     ],
+    'session' => [
+        'name' => Env::get('SESSION_NAME', 'WPSMICROSESSID'),
+        'lifetime' => (int) Env::get('SESSION_LIFETIME', 0),
+        'path' => Env::get('SESSION_PATH', '/'),
+        'domain' => Env::get('SESSION_DOMAIN', ''),
+        'secure' => Env::bool('SESSION_SECURE', $isProduction),
+        'http_only' => Env::bool('SESSION_HTTP_ONLY', true),
+        'same_site' => Env::get('SESSION_SAME_SITE', 'Lax'),
+    ],
+    'logging' => [
+        'path' => $path('LOG_PATH', 'application/Cache/app.log'),
+    ],
     'twig' => [
         'views_path' => $path('TWIG_VIEWS_PATH', 'application/Views'),
         'cache_path' => $path('TWIG_CACHE_PATH', 'application/Cache'),
-        'auto_reload' => Env::bool('TWIG_AUTO_RELOAD', Env::bool('APP_DEBUG', true)),
+        'auto_reload' => Env::bool('TWIG_AUTO_RELOAD', $debug),
         'autoescape' => Env::get('TWIG_AUTOESCAPE', 'html'),
     ],
     'database' => [

@@ -24,10 +24,18 @@ class MiddlewarePipeline
      */
     public function handle(Request $request, array $middleware, callable $destination): Response
     {
+        $destination = function (Request $request) use ($destination): Response {
+            $this->container->instance(Request::class, $request);
+
+            return $destination($request);
+        };
+
         $next = array_reduce(
             array_reverse($middleware),
             function (callable $next, $middleware): callable {
                 return function (Request $request) use ($middleware, $next): Response {
+                    $this->container->instance(Request::class, $request);
+
                     return $this->resolve($middleware)->handle($request, $next);
                 };
             },

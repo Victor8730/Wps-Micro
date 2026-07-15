@@ -9,10 +9,11 @@
     }
   ],
   "config": {
-    "vendor-dir": "application/vendor"
+    "vendor-dir": "application/vendor",
+    "sort-packages": true
   },
   "require": {
-    "php": ">=7.4.0",
+    "php": "^8.3",
     "twig/twig": "^3.0",
     "twbs/bootstrap": "^4.5.2",
     "ext-json": "*",
@@ -20,18 +21,26 @@
     "ext-mbstring": "*",
     "ext-dom": "*",
     "ext-simplexml": "*",
-    "ext-libxml": "*"
+    "ext-libxml": "*",
+    "psr/container": "^2.0"
   },
   "autoload": {
     "psr-4": {
       "Core\\": "application/Core",
       "Exceptions\\": "application/Exceptions",
       "Controllers\\": "application/Controllers",
-      "Models\\": "application/Models",
+      "Models\\": "application/Models"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
       "Tests\\": "application/Tests"
     }
   },
   "require-dev": {
-    "phpunit/phpunit": "~9.3.8"
+    "phpunit/phpunit": "^12.5"
+  },
+  "scripts": {
+    "test": "phpunit --configuration phpunit.xml.dist"
   }
 }

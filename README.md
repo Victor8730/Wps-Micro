@@ -4,9 +4,11 @@ Small MVC skeleton for quickly building PHP web applications.
 
 ## Requirements
 
-- PHP 7.4 or higher
+- PHP 8.3 or higher
 - Composer
 - Docker and Docker Compose, if you want to run the bundled local environment
+
+The framework test suite runs against PHP 8.3, 8.4, and 8.5 in GitHub Actions.
 
 ## Installation
 
@@ -27,6 +29,10 @@ cp .env_example .env
 The committed `.env_example` contains default values. The local `.env` file is
 ignored by Git and can be adjusted per machine.
 
+Without an environment file, the framework uses fail-safe production defaults:
+debug output and Twig auto-reload are disabled, while secure session cookies are
+enabled. Local development should therefore always start from `.env_example`.
+
 ## Run with Docker
 
 Build and start the application:
@@ -44,7 +50,7 @@ http://localhost
 The Docker setup uses:
 
 - nginx on host port `80`
-- PHP-FPM
+- PHP 8.3 FPM with OPcache
 - MariaDB on host port `3307`
 - project root mounted to `/var/www/wps-micro-docker`
 - nginx document root set to `/var/www/wps-micro-docker/public`
@@ -66,6 +72,30 @@ http://localhost:8080
 Inside Docker, the application connects to MariaDB through `DB_HOST=mariadb`.
 If you run PHP directly on your machine and only use the MariaDB container,
 change `DB_HOST` to `127.0.0.1` and keep `DB_PORT=3307`.
+
+## Production Profile
+
+Create the deployment environment from the production template and replace all
+example URLs, credentials, and secrets:
+
+```bash
+cp .env.production.example .env
+```
+
+The FPM image accepts a `PHP_INI` build argument. Build it with the optimized
+production profile using:
+
+```bash
+docker compose build --build-arg PHP_INI=production.ini fpm
+```
+
+The production profile disables displayed errors and OPcache timestamp checks,
+enables PHP error logging, and increases the realpath and OPcache limits. Restart
+the FPM container after every deployment so changed PHP files are loaded.
+
+The bundled Compose file is intended for local development because it exposes
+MariaDB and bind-mounts the source tree. A production deployment should reuse the
+FPM image without those development mounts and ports.
 
 ## Run with a Local Web Server
 
@@ -108,6 +138,9 @@ http://localhost:8000
 - `application/Models` - application models
 - `application/Views` - Twig templates
 - `application/Exceptions` - custom exceptions
+- `application/Tests` - PHPUnit test suite
+- `.env.production.example` - safe production environment template
+- `docker/production.ini` - optimized production PHP profile
 
 ## Request Lifecycle
 
@@ -117,7 +150,7 @@ The framework core follows a small request/response pipeline:
 Request -> Global Middleware -> Router -> Route Middleware -> Controller -> Response
 ```
 
-- `Request` wraps PHP globals and exposes method, path, headers, query data, and body data.
+- `Request` wraps PHP globals and exposes headers, JSON/form input, files, and cookies.
 - Global middleware runs before route matching.
 - `Router` matches the request path to a controller action.
 - Route middleware runs after matching and before the controller is created.
@@ -136,6 +169,9 @@ $router->get('/products/{id}', [ControllerProduct::class, 'actionShow']);
 $router->post('/cart/add', [ControllerCart::class, 'actionAdd']);
 ```
 
+Only explicitly registered routes are dispatchable. Unknown paths return `404`;
+controller classes are never discovered from URL segments.
+
 Route parameters are passed to action arguments with the same name:
 
 ```php
@@ -147,8 +183,7 @@ public function actionShow(string $id): Response
 
 Forms can use `_method` to match `PUT`, `PATCH`, and `DELETE` routes.
 When a path exists for another HTTP method, the framework returns a `405 Method
-Not Allowed` response with an `Allow` header instead of using convention-based
-routing.
+Not Allowed` response with an `Allow` header.
 
 Unsafe form methods require a CSRF token:
 
@@ -187,8 +222,30 @@ container. It creates the configured Twig environment, database connection,
 `Router`, and `Dispatcher`; controller dependencies are resolved through
 constructor injection.
 
+The container implements PSR-11, supports explicit interface bindings, detects
+circular dependencies, and binds the current `Request` by type while the
+middleware pipeline is running.
+
 Default application settings live in `application/Config/app.php`. Environment
 overrides are loaded from `.env` before the kernel is created.
+
+## Request Data
+
+JSON and URL-encoded request bodies are parsed automatically. Common request
+helpers include:
+
+```php
+$request->input('email');
+$request->query('page', 1);
+$request->body('name');
+$request->json('product_id');
+$request->only(['email', 'name']);
+$request->file('avatar');
+$request->cookie('theme');
+```
+
+Malformed JSON receives a `400 Bad Request` response. A client can request JSON
+errors with `Accept: application/json`.
 
 ## Model Layer
 
@@ -209,8 +266,12 @@ $data = $this->validate([
 
 Available rules include `required`, `nullable`, `email`, `integer`, `numeric`,
 `url`, `min`, `max`, and `in`. On validation failure the framework flashes
-errors and old input, then redirects back. AJAX requests receive a `422` JSON
-response.
+errors and old input, then redirects back. Requests that expect JSON receive a
+`422` response.
+
+The validator is intentionally stateless and only validates request data. File
+operations, remote URL checks, and other I/O belong in dedicated application
+services where timeouts and failures can be handled explicitly.
 
 ## Sessions
 
@@ -221,6 +282,13 @@ authentication markers.
 
 The PHP session starts lazily on the first session read or write. Requests that
 do not use session data avoid opening the session and acquiring its lock.
+
+Use `$this->session->regenerate()` after authentication,
+`$this->session->invalidate()` during logout, and `$this->session->close()`
+before long-running work when no more session writes are needed. Flash values
+expire after one following request. Cookie name, lifetime, domain, security,
+HTTP-only, and SameSite settings are configured through `.env`; session lifetime
+is expressed in seconds.
 
 ## Views
 
@@ -242,7 +310,8 @@ CSRF protection is enabled for `POST`, `PUT`, `PATCH`, and `DELETE` requests.
 
 When `APP_DEBUG=true`, uncaught exceptions render a small debug page with the
 exception class, message, file, line, and trace. In production, set
-`APP_DEBUG=false` to return a generic `500` response.
+`APP_DEBUG=false` to return a generic `500` response. JSON clients receive JSON
+error payloads, and server errors are written to `LOG_PATH`.
 
 ## Migrations
 
@@ -268,6 +337,8 @@ php application/console.php migrate:rollback --steps=2
 The Docker database bootstrap schema also records the initial migration, so the
 CLI migrator can be used safely after a fresh `docker compose up`.
 
+Migration tracking supports both MySQL/MariaDB and SQLite connections.
+
 ## Console
 
 The old installer has been replaced by console commands:
@@ -278,3 +349,19 @@ php application/console.php make:controller Product
 php application/console.php make:model Product
 php application/console.php make:migration create_products_table
 ```
+
+## Testing
+
+Run the framework test suite with:
+
+```bash
+composer test
+```
+
+The suite includes unit tests plus integration coverage for the application
+kernel, routing, middleware, Twig rendering, CSRF, PDO, migrations, rollback,
+production configuration, and error handling. SQLite integration tests require
+the `pdo_sqlite` extension.
+
+GitHub Actions validates Composer, audits dependencies, lints project PHP files,
+and runs PHPUnit on PHP 8.3, 8.4, and 8.5.

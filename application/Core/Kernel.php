@@ -50,6 +50,21 @@ class Kernel
             /** @var ErrorHandler $handler */
             $handler = $this->container->get(ErrorHandler::class);
 
+            return $handler->render($exception, $request);
+        }
+    }
+
+    /**
+     * Build and handle a request from PHP globals.
+     */
+    public function handleGlobals(): Response
+    {
+        try {
+            return $this->handle(Request::fromGlobals());
+        } catch (\Throwable $exception) {
+            /** @var ErrorHandler $handler */
+            $handler = $this->container->get(ErrorHandler::class);
+
             return $handler->render($exception);
         }
     }
@@ -91,11 +106,8 @@ class Kernel
             return $twig;
         });
 
-        $this->container->set(Router::class, static function (Container $container): Router {
-            /** @var Config $config */
-            $config = $container->get(Config::class);
-
-            return new Router($config);
+        $this->container->set(Router::class, static function (): Router {
+            return new Router();
         });
 
         $this->container->set(MiddlewarePipeline::class, static function (Container $container): MiddlewarePipeline {
@@ -109,8 +121,11 @@ class Kernel
             return new ErrorHandler($config);
         });
 
-        $this->container->set(Session::class, static function (): Session {
-            return new Session();
+        $this->container->set(Session::class, static function (Container $container): Session {
+            /** @var Config $config */
+            $config = $container->get(Config::class);
+
+            return new Session((array) $config->get('session', []));
         });
 
         $this->container->set(Csrf::class, static function (Container $container): Csrf {
@@ -159,6 +174,8 @@ class Kernel
             $router = $container->get(Router::class);
             /** @var MiddlewarePipeline $pipeline */
             $pipeline = $container->get(MiddlewarePipeline::class);
+            /** @var ErrorHandler $errorHandler */
+            $errorHandler = $container->get(ErrorHandler::class);
             /** @var Config $config */
             $config = $container->get(Config::class);
 
@@ -166,6 +183,7 @@ class Kernel
                 $router,
                 $container,
                 $pipeline,
+                $errorHandler,
                 (array) $config->get('middleware.global', []),
                 (array) $config->get('middleware.route', [])
             );

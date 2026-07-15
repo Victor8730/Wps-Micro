@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Core;
 
+use Exceptions\BadRequestException;
+
 class ErrorHandler
 {
     /**
@@ -22,15 +24,82 @@ class ErrorHandler
     /**
      * Render an exception response.
      */
-    public function render(\Throwable $exception): Response
+    public function render(\Throwable $exception, ?Request $request = null): Response
     {
+        if ($exception instanceof BadRequestException) {
+            return $this->errorResponse(
+                $exception->getMessage(),
+                400,
+                $request,
+                $exception->expectsJson()
+            );
+        }
+
+        $this->log($exception);
+
         if (!$this->isDebug()) {
-            return new Response('Server error', 500);
+            return $this->errorResponse('Server error', 500, $request);
+        }
+
+        if ($request?->expectsJson()) {
+            return new JsonResponse([
+                'error' => get_class($exception),
+                'message' => $exception->getMessage(),
+                'file' => $exception->getFile(),
+                'line' => $exception->getLine(),
+                'trace' => explode("\n", $exception->getTraceAsString()),
+            ], 500);
         }
 
         return new Response($this->debugHtml($exception), 500, [
             'Content-Type' => 'text/html; charset=UTF-8',
         ]);
+    }
+
+    /**
+     * Build a text or JSON error response.
+     */
+    private function errorResponse(
+        string $message,
+        int $statusCode,
+        ?Request $request,
+        bool $expectsJson = false
+    ): Response
+    {
+        if ($expectsJson || $request?->expectsJson()) {
+            return new JsonResponse(['message' => $message], $statusCode);
+        }
+
+        return new Response($message, $statusCode, [
+            'Content-Type' => 'text/plain; charset=UTF-8',
+        ]);
+    }
+
+    /**
+     * Write an exception to the configured application log.
+     */
+    private function log(\Throwable $exception): void
+    {
+        $message = sprintf(
+            "[%s] %s: %s in %s:%d\n%s\n\n",
+            date('Y-m-d H:i:s'),
+            get_class($exception),
+            $exception->getMessage(),
+            $exception->getFile(),
+            $exception->getLine(),
+            $exception->getTraceAsString()
+        );
+        $path = (string) $this->config->get('logging.path', '');
+
+        if ($path !== '') {
+            $directory = dirname($path);
+
+            if ((is_dir($directory) || mkdir($directory, 0775, true)) && error_log($message, 3, $path)) {
+                return;
+            }
+        }
+
+        error_log($message);
     }
 
     /**

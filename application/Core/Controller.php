@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Core;
 
-class Controller extends Base
+class Controller
 {
     /**
      * Current HTTP request.
@@ -52,8 +52,6 @@ class Controller extends Base
         $this->csrf = $csrf;
         $this->validator = $validator;
         $this->isAjax = $this->request->isAjax();
-
-        parent::__construct();
     }
 
     /**
