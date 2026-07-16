@@ -1,6 +1,15 @@
 {% extends "example-template.twig" %}
+{% block title %}Home | WPS Micro{% endblock %}
 {% block content %}
     <div class="col-md-12 order-md-2">
+        {% if auth_user is defined and auth_user %}
+            <div class="alert alert-success d-flex justify-content-between align-items-center">
+                <div>
+                    Signed in as <strong>{{ auth_user.name }}</strong> ({{ auth_user.email }}).
+                </div>
+                <a href="{{ url('/account') }}" class="btn btn-sm btn-success">View account</a>
+            </div>
+        {% endif %}
         <div class="card text-center">
             <form action="/" method="post" class="my-2 form">
                 {{ csrf_field() }}

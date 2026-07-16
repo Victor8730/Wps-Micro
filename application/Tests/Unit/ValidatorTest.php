@@ -50,4 +50,33 @@ final class ValidatorTest extends TestCase
 
         self::fail('Invalid input was accepted.');
     }
+
+    public function testConfirmedRuleAcceptsMatchingValues(): void
+    {
+        $validator = new Validator();
+
+        $validated = $validator->validate([
+            'password' => 'secret-pass',
+            'password_confirmation' => 'secret-pass',
+        ], [
+            'password' => 'required|confirmed',
+        ]);
+
+        self::assertSame(['password' => 'secret-pass'], $validated);
+    }
+
+    public function testConfirmedRuleRejectsDifferentValues(): void
+    {
+        $validator = new Validator();
+
+        $this->expectException(ValidationException::class);
+        $this->expectExceptionMessage('The given data was invalid.');
+
+        $validator->validate([
+            'password' => 'secret-pass',
+            'password_confirmation' => 'different-pass',
+        ], [
+            'password' => 'required|confirmed',
+        ]);
+    }
 }

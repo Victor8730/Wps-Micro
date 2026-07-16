@@ -52,6 +52,7 @@ The Docker setup uses:
 - nginx on host port `80`
 - PHP 8.3 FPM with OPcache
 - MariaDB on host port `3307`
+- a one-shot migration service that runs after MariaDB becomes healthy
 - project root mounted to `/var/www/wps-micro-docker`
 - nginx document root set to `/var/www/wps-micro-docker/public`
 
@@ -131,11 +132,13 @@ http://localhost:8000
 - `application/bootstrap.php` - application bootstrap
 - `application/console.php` - console command entry point
 - `application/Config/app.php` - application configuration
-- `application/Database/schema.sql` - local database bootstrap schema
+- `application/Database/migrations` - ordered database migrations
 - `.env_example` - environment configuration template
 - `application/Core` - framework core classes
 - `application/Controllers` - application controllers
+- `application/Middleware` - application-level middleware
 - `application/Models` - application models
+- `application/Services` - application business workflows
 - `application/Views` - Twig templates
 - `application/Exceptions` - custom exceptions
 - `application/Tests` - PHPUnit test suite
@@ -200,13 +203,24 @@ Route-level middleware can also be attached directly in
 `application/Routes/web.php`:
 
 ```php
+use Middleware\AuthMiddleware;
+
 $router
     ->post('/cart/add', [ControllerCart::class, 'actionAdd'])
-    ->middleware(App\Middleware\AuthMiddleware::class);
+    ->middleware(AuthMiddleware::class);
 ```
 
 Middleware classes implement `Core\Middleware` and receive the current
 `Request` plus the next layer callback.
+
+The included `Middleware\AuthMiddleware` example considers a request
+authenticated when the session contains `user_id`. Browser requests are
+redirected to `/login`, while clients that request JSON receive a `401`
+response. Store the user identifier after a successful login:
+
+```php
+$this->session->set('user_id', $userId);
+```
 
 Global middleware wraps route matching and error responses. Route middleware
 runs after a route is matched, while the controller is created only after all
@@ -259,15 +273,41 @@ Controllers can validate request input with simple rules:
 
 ```php
 $data = $this->validate([
-    'email' => 'required|email',
-    'name' => 'required|min:2|max:255',
+    'name' => 'required|min:2|max:120',
+    'email' => 'required|email|max:255',
+    'age' => 'nullable|integer',
+    'price' => 'required|numeric',
+    'website' => 'nullable|url',
+    'role' => 'required|in:admin,editor,customer',
+    'password' => 'required|min:8|max:255|confirmed',
 ]);
 ```
 
-Available rules include `required`, `nullable`, `email`, `integer`, `numeric`,
-`url`, `min`, `max`, and `in`. On validation failure the framework flashes
-errors and old input, then redirects back. Requests that expect JSON receive a
-`422` response.
+Rules can be provided as a pipe-separated string or as an array:
+
+```php
+$data = $this->validate([
+    'status' => ['required', 'in:draft,published'],
+]);
+```
+
+| Rule | Example | Description |
+| --- | --- | --- |
+| `required` | `required` | The field must be present and not empty. |
+| `nullable` | `nullable` | The field may be `null` or an empty string. |
+| `email` | `email` | The value must be a valid email address. |
+| `integer` | `integer` | The value must be a valid integer. |
+| `numeric` | `numeric` | The value must be numeric. |
+| `url` | `url` | The value must be a valid URL. |
+| `min` | `min:8` | The value must contain at least the given number of characters. |
+| `max` | `max:255` | The value may not exceed the given number of characters. |
+| `in` | `in:admin,editor` | The value must match one of the listed values. |
+| `confirmed` | `confirmed` | The value must match the corresponding `_confirmation` field. |
+
+For example, `password|confirmed` expects a `password_confirmation` input with
+the same value. Fields without the `required` rule are optional. On validation
+failure the framework flashes errors and old input, then redirects back.
+Requests that expect JSON receive a `422` response.
 
 The validator is intentionally stateless and only validates request data. File
 operations, remote URL checks, and other I/O belong in dedicated application
@@ -289,6 +329,26 @@ before long-running work when no more session writes are needed. Flash values
 expire after one following request. Cookie name, lifetime, domain, security,
 HTTP-only, and SameSite settings are configured through `.env`; session lifetime
 is expressed in seconds.
+
+## Authentication
+
+The example application includes a complete session-based authentication flow:
+
+- `GET /register` and `POST /register` create a user
+- `GET /login` and `POST /login` authenticate credentials
+- `GET /account` displays the authenticated user
+- `POST /logout` invalidates the authenticated session
+
+Passwords are stored with PHP's `PASSWORD_DEFAULT` algorithm. Authentication
+regenerates the session identifier, logout invalidates it, and user records
+passed to views never contain the password hash. The account and logout routes
+are protected by `Middleware\AuthMiddleware`.
+
+Create the `users` table by running the pending migrations:
+
+```bash
+php application/console.php migrate
+```
 
 ## Views
 
@@ -322,6 +382,10 @@ migrations with:
 php application/console.php migrate
 ```
 
+The migrator creates its own tracking table before applying migration files, so
+there is no separate schema dump to keep synchronized. Migration files are the
+single source of truth for the database structure.
+
 Roll back the last migration with:
 
 ```bash
@@ -334,8 +398,9 @@ Roll back multiple migrations with:
 php application/console.php migrate:rollback --steps=2
 ```
 
-The Docker database bootstrap schema also records the initial migration, so the
-CLI migrator can be used safely after a fresh `docker compose up`.
+Docker Compose runs the same command through its one-shot `migrate` service
+after MariaDB passes its healthcheck. PHP-FPM starts only when that command
+finishes successfully.
 
 Migration tracking supports both MySQL/MariaDB and SQLite connections.
 

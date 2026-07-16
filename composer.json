@@ -29,7 +29,9 @@
       "Core\\": "application/Core",
       "Exceptions\\": "application/Exceptions",
       "Controllers\\": "application/Controllers",
-      "Models\\": "application/Models"
+      "Middleware\\": "application/Middleware",
+      "Models\\": "application/Models",
+      "Services\\": "application/Services"
     }
   },
   "autoload-dev": {

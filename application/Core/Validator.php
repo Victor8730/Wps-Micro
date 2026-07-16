@@ -24,7 +24,7 @@ class Validator
             $fieldRules = is_array($definition) ? $definition : explode('|', (string) $definition);
 
             foreach ($fieldRules as $rule) {
-                $message = $this->validateRule((string) $field, $value, (string) $rule);
+                $message = $this->validateRule((string) $field, $value, (string) $rule, $data);
 
                 if ($message !== null) {
                     $errors[$field][] = $message;
@@ -48,7 +48,7 @@ class Validator
      *
      * @param mixed $value
      */
-    private function validateRule(string $field, $value, string $rule): ?string
+    private function validateRule(string $field, $value, string $rule, array $data): ?string
     {
         [$name, $parameter] = array_pad(explode(':', $rule, 2), 2, null);
 
@@ -79,6 +79,11 @@ class Validator
                 $allowed = $parameter === null ? [] : explode(',', $parameter);
 
                 return !in_array((string) $value, $allowed, true) ? $field . ' is invalid.' : null;
+            case 'confirmed':
+                $confirmation = $data[$field . '_confirmation'] ?? null;
+                $confirmation = is_string($confirmation) ? trim($confirmation) : $confirmation;
+
+                return $value !== $confirmation ? $field . ' confirmation does not match.' : null;
             case 'nullable':
                 return null;
             default:

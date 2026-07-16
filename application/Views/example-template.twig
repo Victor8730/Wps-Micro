@@ -1,81 +1,69 @@
 <!doctype html>
-<html lang="ru">
+<html lang="en">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-    <meta name="description" content="Task List">
+    <meta name="description" content="WPS Micro application">
     <meta name="author" content="Victor Galiuzov">
-    <link rel="icon" href="/img/favicon.ico">
-    <title>Title app</title>
-    <link href="/css/bootstrap.css" rel="stylesheet">
-    <link href="/css/form-validation.css" rel="stylesheet">
-    <link href="/css/font-awesome.css" rel="stylesheet">
-    <link href="/css/style.css" rel="stylesheet">
+    <link rel="icon" href="{{ asset('img/favicon.ico') }}">
+    <title>{% block title %}WPS Micro{% endblock %}</title>
+    <link href="{{ asset('css/bootstrap.css') }}" rel="stylesheet">
+    <link href="{{ asset('css/form-validation.css') }}" rel="stylesheet">
+    <link href="{{ asset('css/font-awesome.css') }}" rel="stylesheet">
+    <link href="{{ asset('css/style.css') }}" rel="stylesheet">
 </head>
 <body class="bg-light">
 <header>
-    <div class="bg-dark collapse" id="navbarHeader">
+    <nav class="navbar navbar-expand navbar-dark bg-dark box-shadow">
         <div class="container">
-            <div class="row">
-                <div class="col-md-12 py-2">
-                    <h4 class="text-white">Info text</h4>
-                    <ul>
-                        <li class="text-white">about apps text</li>
-                    </ul>
-                </div>
+            <a href="{{ url('/') }}" class="navbar-brand font-weight-bold">WPS Micro</a>
+            <div class="ml-auto d-flex align-items-center">
+                {% if auth_user is defined and auth_user %}
+                    <span class="navbar-text mr-3 d-none d-md-inline">
+                        {{ auth_user.name }} &middot; {{ auth_user.email }}
+                    </span>
+                    <a href="{{ url('/account') }}" class="btn btn-outline-light btn-sm mr-2">Account</a>
+                    <form action="{{ url('/logout') }}" method="post" class="m-0">
+                        {{ csrf_field() }}
+                        <button type="submit" class="btn btn-light btn-sm">Log out</button>
+                    </form>
+                {% else %}
+                    <a href="{{ url('/login') }}" class="btn btn-outline-light btn-sm mr-2">Log in</a>
+                    <a href="{{ url('/register') }}" class="btn btn-light btn-sm">Create account</a>
+                {% endif %}
             </div>
         </div>
-    </div>
-    <div class="navbar navbar-dark bg-dark box-shadow">
-        <div class="container d-flex justify-content-between">
-            <a href="/" class="navbar-toggler" title="Show all task">
-                <i class="fa fa-list fa-2x" aria-hidden="true"></i>
-            </a>
-            <button class="navbar-toggler tooltip-show" type="button" title="Show info" data-toggle="collapse"
-                    data-target="#navbarHeader" aria-controls="navbarHeader" aria-expanded="true"
-                    aria-label="Toggle navigation">
-                <i class="fa fa-info-circle fa-2x mr-4" aria-hidden="true"></i>
-            </button>
-        </div>
-    </div>
+    </nav>
 </header>
-<div class="container">
-    <div class="col-md-12 my-1">
-        <div class="info-block" style="height: 50px;">
-
-        </div>
-    </div>
-    <div class="py-3 text-center">
-        <img class="d-block mx-auto mb-2" src="/img/logo.png" alt="Example h2 text" width="500px" height="86px">
-        <h2>Example h2 text</h2>
+<main class="container py-5">
+    <div class="text-center mb-5">
+        <a href="{{ url('/') }}">
+            <img class="img-fluid" src="{{ asset('img/logo.png') }}" alt="WPS Micro" width="500" height="86">
+        </a>
     </div>
 
-    <div class="row content">
+    <div class="row content justify-content-center">
         {% block content %}
         {% endblock %}
     </div>
+</main>
 
-    <footer class="my-5 pt-5 text-muted text-center text-small">
-        <p class="mb-1">&copy; 2020 Webpagestudio</p>
-        <ul class="list-group list-group-horizontal d-inline-flex">
-            <li class="list-group-item"><a href="/" class="text-info">Home</a></li>
-            <li class="list-group-item"><a href="" class="text-info" target="_blank">Example element menu</a></li>
-        </ul>
-    </footer>
-</div>
+<footer class="container pb-5 text-muted text-center text-small">
+    <p class="mb-2">&copy; {{ "now"|date("Y") }} Webpagestudio</p>
+    <a href="{{ url('/') }}" class="text-info">Home</a>
+</footer>
 
-<script src="/js/jquery.min.js"></script>
-<script src="/js/bootstrap.js"></script>
-<script src="/js/bootstrap.bundle.js"></script>
+<script src="{{ asset('js/jquery.min.js') }}"></script>
+<script src="{{ asset('js/bootstrap.bundle.js') }}"></script>
 <script>
     /**
-     * Validate the form
-     * */
+     * Enable native Bootstrap form validation styles.
+     */
     (function () {
         'use strict';
         window.addEventListener('load', function () {
             let forms = document.getElementsByClassName('needs-validation');
-            let validation = Array.prototype.filter.call(forms, function (form) {
+            Array.prototype.filter.call(forms, function (form) {
                 form.addEventListener('submit', function (event) {
                     if (form.checkValidity() === false) {
                         event.preventDefault();
@@ -87,22 +75,9 @@
         }, false);
     })();
 
-    /**
-     * On tooltips for element with class or atr
-     * */
     $(function () {
         $('[data-toggle="tooltip"],.tooltip-show').tooltip({'placement': 'bottom'});
     });
-
-    /**
-     * Show alert div with information
-     * */
-    function showAlert(message, type) {
-        $('.info-block').append('<div class="alert alert-' + type + '" role="alert">' + message + '</div>');
-        setTimeout(function () {
-            $(".alert").alert('close');
-        }, 3000);
-    }
 </script>
 </body>
 </html>

@@ -1,0 +1,35 @@
+{% extends "example-template.twig" %}
+
+{% block title %}Account | WPS Micro{% endblock %}
+
+{% block content %}
+    <div class="col-md-9 col-lg-7">
+        {% set success_message = flash('success') %}
+        {% if success_message %}
+            <div class="alert alert-success" role="alert">{{ success_message }}</div>
+        {% endif %}
+
+        <div class="card shadow-sm">
+            <div class="card-body p-4">
+                <div class="d-flex justify-content-between align-items-start mb-4">
+                    <div>
+                        <p class="text-muted mb-1">Authenticated account</p>
+                        <h1 class="h3 mb-0">{{ auth_user.name }}</h1>
+                    </div>
+                    <span class="badge badge-success px-3 py-2">Signed in</span>
+                </div>
+
+                <dl class="row mb-0">
+                    <dt class="col-sm-4">User ID</dt>
+                    <dd class="col-sm-8">{{ auth_user.id }}</dd>
+
+                    <dt class="col-sm-4">Email</dt>
+                    <dd class="col-sm-8">{{ auth_user.email }}</dd>
+
+                    <dt class="col-sm-4">Created</dt>
+                    <dd class="col-sm-8">{{ auth_user.created_at }}</dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+{% endblock %}

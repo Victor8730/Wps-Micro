@@ -11,6 +11,7 @@ use Core\Response;
 use Core\Session;
 use Core\Validator;
 use Models\Home;
+use Services\AuthService;
 
 class ControllerHome extends Controller
 {
@@ -19,7 +20,12 @@ class ControllerHome extends Controller
      */
     private Home $home;
 
-     /**
+    /**
+     * Authentication service used by the home page.
+     */
+    private AuthService $auth;
+
+    /**
      * Prepare the controller dependencies.
      */
     public function __construct(
@@ -28,9 +34,11 @@ class ControllerHome extends Controller
         Session $session,
         Csrf $csrf,
         Validator $validator,
-        Home $home
+        Home $home,
+        AuthService $auth
     ) {
         $this->home = $home;
+        $this->auth = $auth;
 
         parent::__construct($request, $view, $session, $csrf, $validator);
     }
@@ -42,6 +50,7 @@ class ControllerHome extends Controller
     {
         return $this->render('home/' . $this->getNameView(), [
             'messages' => $this->home->latestMessages(),
+            'auth_user' => $this->auth->user(),
         ]);
     }
 }
