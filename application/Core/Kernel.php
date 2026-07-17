@@ -135,6 +135,13 @@ class Kernel
             return new Csrf($session);
         });
 
+        $this->container->set(Vite::class, static function (Container $container): Vite {
+            /** @var Config $config */
+            $config = $container->get(Config::class);
+
+            return new Vite($config);
+        });
+
         $this->container->set(ViewHelpers::class, static function (Container $container): ViewHelpers {
             /** @var Config $config */
             $config = $container->get(Config::class);
@@ -142,8 +149,10 @@ class Kernel
             $csrf = $container->get(Csrf::class);
             /** @var Session $session */
             $session = $container->get(Session::class);
+            /** @var Vite $vite */
+            $vite = $container->get(Vite::class);
 
-            return new ViewHelpers($config, $csrf, $session);
+            return new ViewHelpers($config, $csrf, $session, $vite);
         });
 
         $this->container->set(Database::class, static function (Container $container): Database {
@@ -185,7 +194,8 @@ class Kernel
                 $pipeline,
                 $errorHandler,
                 (array) $config->get('middleware.global', []),
-                (array) $config->get('middleware.route', [])
+                (array) $config->get('middleware.route', []),
+                (array) $config->get('errors.not_found', [])
             );
         });
     }

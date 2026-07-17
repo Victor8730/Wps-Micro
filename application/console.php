@@ -11,11 +11,8 @@ use Core\Console\Commands\MakeModelCommand;
 use Core\Console\Commands\MigrateCommand;
 use Core\Console\Commands\MigrateRollbackCommand;
 
-require_once __DIR__ . '/vendor/autoload.php';
-
-Env::load(dirname(__DIR__) . '/.env');
-
-$kernel = Kernel::fromConfigFile(__DIR__ . '/Config/app.php');
+/** @var Kernel $kernel */
+$kernel = require __DIR__ . '/bootstrap.php';
 $container = $kernel->getContainer();
 
 $rootPath = dirname(__DIR__);

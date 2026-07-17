@@ -1,0 +1,78 @@
+x-application-environment: &application-environment
+  APP_ENV: production
+  APP_DEBUG: "false"
+  APP_URL: ${APP_URL:?Set APP_URL for production}
+  VITE_DEV_SERVER_URL: ""
+  DB_DRIVER: mysql
+  DB_HOST: mariadb
+  DB_PORT: 3306
+  DB_DATABASE: ${DB_DATABASE:-wps_micro}
+  DB_USERNAME: ${DB_USERNAME:-wps_micro}
+  DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD for production}
+  SESSION_SECURE: ${SESSION_SECURE:-true}
+
+services:
+  nginx:
+    image: wps-micro-nginx:production
+    build:
+      context: .
+      dockerfile: docker/production.Dockerfile
+      target: nginx
+    restart: unless-stopped
+    ports:
+      - ${APP_PORT:-80}:80
+    depends_on:
+      fpm:
+        condition: service_started
+    networks:
+      - app-network
+
+  fpm:
+    image: wps-micro-fpm:production
+    build:
+      context: .
+      dockerfile: docker/production.Dockerfile
+      target: fpm
+    restart: unless-stopped
+    environment: *application-environment
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    networks:
+      - app-network
+
+  migrate:
+    image: wps-micro-fpm:production
+    command: php application/console.php migrate
+    environment: *application-environment
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    networks:
+      - app-network
+
+  mariadb:
+    image: mariadb:10.11
+    restart: unless-stopped
+    environment:
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?Set DB_ROOT_PASSWORD for production}
+      MARIADB_DATABASE: ${DB_DATABASE:-wps_micro}
+      MARIADB_USER: ${DB_USERNAME:-wps_micro}
+      MARIADB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD for production}
+    volumes:
+      - mariadb-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  mariadb-data:

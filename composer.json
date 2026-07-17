@@ -1,6 +1,6 @@
 {
   "name": "webpagestudio/wps-micro",
-  "description": "Skeleton for web apps with MVC pattern",
+  "description": "Lightweight PHP framework for building web applications",
   "license": "MIT",
   "authors": [
     {
@@ -15,7 +15,6 @@
   "require": {
     "php": "^8.3",
     "twig/twig": "^3.0",
-    "twbs/bootstrap": "^4.5.2",
     "ext-json": "*",
     "ext-pdo": "*",
     "ext-mbstring": "*",

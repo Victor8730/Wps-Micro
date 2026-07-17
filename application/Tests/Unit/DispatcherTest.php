@@ -125,6 +125,30 @@ final class DispatcherTest extends TestCase
             $session->flashed['old_input'] ?? null
         );
     }
+
+    public function testItUsesTheConfiguredNotFoundAction(): void
+    {
+        $config = new Config([
+            'app' => ['debug' => false],
+            'logging' => ['path' => $this->logPath],
+        ]);
+        $router = new Router();
+        $container = new Container();
+        $dispatcher = new Dispatcher(
+            $router,
+            $container,
+            new MiddlewarePipeline($container),
+            new ErrorHandler($config),
+            [],
+            [],
+            [NotFoundController::class, 'show']
+        );
+
+        $response = $dispatcher->dispatch(new Request('GET', '/missing'));
+
+        self::assertSame(404, $response->getStatusCode());
+        self::assertSame('Custom not found page', $response->getContent());
+    }
 }
 
 final class FailingController
@@ -150,6 +174,14 @@ final class ValidationFailureController
         throw new ValidationException([
             'email' => ['email is invalid.'],
         ]);
+    }
+}
+
+final class NotFoundController
+{
+    public function show(): Response
+    {
+        return new Response('Custom not found page');
     }
 }
 

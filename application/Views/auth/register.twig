@@ -1,73 +1,76 @@
-{% extends "example-template.twig" %}
+{% extends "layouts/app.twig" %}
 
 {% block title %}Create account | WPS Micro{% endblock %}
 
 {% block content %}
-    <div class="col-md-7 col-lg-5">
-        <div class="card shadow-sm">
-            <div class="card-body p-4">
-                <h1 class="h3 mb-4">Create account</h1>
+    <div class="mx-auto w-full max-w-md">
+        <div class="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm sm:p-8">
+            <h1 class="text-2xl font-semibold text-zinc-950">Create account</h1>
+            <p class="mt-2 text-sm text-zinc-500">Register a session-based account in the example application.</p>
 
-                <form action="{{ url('/register') }}" method="post" class="needs-validation" novalidate>
-                    {{ csrf_field() }}
+            <form action="{{ url('/register') }}" method="post" class="mt-7 space-y-5" data-validate novalidate>
+                {{ csrf_field() }}
 
-                    <div class="form-group">
-                        <label for="name">Name</label>
+                    <div>
+                        <label for="name" class="block text-sm font-medium text-zinc-700">Name</label>
                         <input
                             type="text"
-                            class="form-control{% if error('name') %} is-invalid{% endif %}"
+                            class="mt-1.5 block w-full rounded-lg border border-zinc-300 bg-white px-3 py-2.5 text-sm text-zinc-950 outline-none transition focus:border-brand-600 focus:ring-2 focus:ring-brand-100 aria-invalid:border-red-500 aria-invalid:focus:border-red-500 aria-invalid:focus:ring-red-100"
                             id="name"
                             name="name"
                             value="{{ old('name') }}"
                             autocomplete="name"
+                            aria-invalid="{{ error('name') ? 'true' : 'false' }}"
                             minlength="2"
                             maxlength="120"
                             required
                             autofocus
                         >
                         {% if error('name') %}
-                            <div class="invalid-feedback">{{ error('name') }}</div>
+                            <p class="mt-1.5 text-sm text-red-600">{{ error('name') }}</p>
                         {% endif %}
                     </div>
 
-                    <div class="form-group">
-                        <label for="email">Email address</label>
+                    <div>
+                        <label for="email" class="block text-sm font-medium text-zinc-700">Email address</label>
                         <input
                             type="email"
-                            class="form-control{% if error('email') %} is-invalid{% endif %}"
+                            class="mt-1.5 block w-full rounded-lg border border-zinc-300 bg-white px-3 py-2.5 text-sm text-zinc-950 outline-none transition focus:border-brand-600 focus:ring-2 focus:ring-brand-100 aria-invalid:border-red-500 aria-invalid:focus:border-red-500 aria-invalid:focus:ring-red-100"
                             id="email"
                             name="email"
                             value="{{ old('email') }}"
                             autocomplete="email"
+                            aria-invalid="{{ error('email') ? 'true' : 'false' }}"
                             maxlength="255"
                             required
                         >
                         {% if error('email') %}
-                            <div class="invalid-feedback">{{ error('email') }}</div>
+                            <p class="mt-1.5 text-sm text-red-600">{{ error('email') }}</p>
                         {% endif %}
                     </div>
 
-                    <div class="form-group">
-                        <label for="password">Password</label>
+                    <div>
+                        <label for="password" class="block text-sm font-medium text-zinc-700">Password</label>
                         <input
                             type="password"
-                            class="form-control{% if error('password') %} is-invalid{% endif %}"
+                            class="mt-1.5 block w-full rounded-lg border border-zinc-300 bg-white px-3 py-2.5 text-sm text-zinc-950 outline-none transition focus:border-brand-600 focus:ring-2 focus:ring-brand-100 aria-invalid:border-red-500 aria-invalid:focus:border-red-500 aria-invalid:focus:ring-red-100"
                             id="password"
                             name="password"
                             autocomplete="new-password"
+                            aria-invalid="{{ error('password') ? 'true' : 'false' }}"
                             minlength="8"
                             required
                         >
                         {% if error('password') %}
-                            <div class="invalid-feedback">{{ error('password') }}</div>
+                            <p class="mt-1.5 text-sm text-red-600">{{ error('password') }}</p>
                         {% endif %}
                     </div>
 
-                    <div class="form-group">
-                        <label for="password_confirmation">Confirm password</label>
+                    <div>
+                        <label for="password_confirmation" class="block text-sm font-medium text-zinc-700">Confirm password</label>
                         <input
                             type="password"
-                            class="form-control"
+                            class="mt-1.5 block w-full rounded-lg border border-zinc-300 bg-white px-3 py-2.5 text-sm text-zinc-950 outline-none transition focus:border-brand-600 focus:ring-2 focus:ring-brand-100 aria-invalid:border-red-500 aria-invalid:focus:border-red-500 aria-invalid:focus:ring-red-100"
                             id="password_confirmation"
                             name="password_confirmation"
                             autocomplete="new-password"
@@ -76,13 +79,16 @@
                         >
                     </div>
 
-                    <button type="submit" class="btn btn-primary btn-block">Create account</button>
-                </form>
+                <button type="submit"
+                        class="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-brand-600 px-4 text-sm font-semibold text-white transition hover:bg-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2">
+                    Create account
+                </button>
+            </form>
 
-                <p class="text-muted text-center mt-4 mb-0">
-                    Already registered? <a href="{{ url('/login') }}">Log in</a>
-                </p>
-            </div>
+            <p class="mt-6 text-center text-sm text-zinc-500">
+                Already registered?
+                <a href="{{ url('/login') }}" class="font-semibold text-brand-700 hover:text-brand-600">Log in</a>
+            </p>
         </div>
     </div>
 {% endblock %}

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Core;
 
-use Controllers\Controller404;
 use Exceptions\CsrfTokenMismatchException;
 use Exceptions\HttpNotFoundException;
 use Exceptions\MethodNotAllowedException;
@@ -43,6 +42,11 @@ class Dispatcher
     private array $routeMiddleware;
 
     /**
+     * Application action used to render browser 404 responses.
+     */
+    private array $notFoundAction;
+
+    /**
      * Create a dispatcher.
      */
     public function __construct(
@@ -51,7 +55,8 @@ class Dispatcher
         MiddlewarePipeline $pipeline,
         ErrorHandler $errorHandler,
         array $globalMiddleware = [],
-        array $routeMiddleware = []
+        array $routeMiddleware = [],
+        array $notFoundAction = []
     ) {
         $this->router = $router;
         $this->container = $container;
@@ -59,6 +64,7 @@ class Dispatcher
         $this->errorHandler = $errorHandler;
         $this->globalMiddleware = $globalMiddleware;
         $this->routeMiddleware = $routeMiddleware;
+        $this->notFoundAction = $notFoundAction;
     }
 
     /**
@@ -217,11 +223,21 @@ class Dispatcher
             return $this->clientError($request, 'Page not found', 404);
         }
 
+        if (count($this->notFoundAction) !== 2) {
+            return new Response('Page not found', 404);
+        }
+
+        [$controllerClass, $actionMethod] = $this->notFoundAction;
+
+        if (!is_string($controllerClass) || !is_string($actionMethod)) {
+            return new Response('Page not found', 404);
+        }
+
         try {
             $this->container->instance(Request::class, $request);
-            $controller = $this->container->make(Controller404::class);
+            $controller = $this->container->make($controllerClass);
 
-            return $this->executeAction($controller, 'actionIndex')
+            return $this->executeAction($controller, $actionMethod)
                 ->setStatusCode(404);
         } catch (\Throwable $e) {
             return new Response('Page not found', 404);

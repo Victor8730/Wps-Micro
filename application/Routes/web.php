@@ -9,7 +9,6 @@ use Middleware\AuthMiddleware;
 
 return static function (Router $router): void {
     $router->get('/', [ControllerHome::class, 'actionIndex']);
-    $router->post('/', [ControllerHome::class, 'actionIndex']);
 
     $router->get('/login', [ControllerAuth::class, 'actionLogin']);
     $router->post('/login', [ControllerAuth::class, 'actionAuthenticate']);

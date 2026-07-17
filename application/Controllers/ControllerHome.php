@@ -48,9 +48,9 @@ class ControllerHome extends Controller
      */
     public function actionIndex(): Response
     {
-        return $this->render('home/' . $this->getNameView(), [
-            'messages' => $this->home->latestMessages(),
+        return $this->render('home/home.twig', [
             'auth_user' => $this->auth->user(),
+            'messages' => $this->home->latestMessages(),
         ]);
     }
 }

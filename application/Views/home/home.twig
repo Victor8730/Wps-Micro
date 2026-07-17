@@ -1,49 +1,51 @@
-{% extends "example-template.twig" %}
+{% extends "layouts/app.twig" %}
 {% block title %}Home | WPS Micro{% endblock %}
 {% block content %}
-    <div class="col-md-12 order-md-2">
-        {% if auth_user is defined and auth_user %}
-            <div class="alert alert-success d-flex justify-content-between align-items-center">
-                <div>
+    <div class="mx-auto w-full max-w-3xl">
+        <section class="text-center">
+            <p class="mb-3 text-sm font-semibold uppercase text-brand-700">Fast, explicit, focused</p>
+            <h1 class="text-3xl font-semibold text-zinc-950 sm:text-4xl">Build small PHP applications with less ceremony</h1>
+            <p class="mx-auto mt-4 max-w-2xl text-base leading-7 text-zinc-600 sm:text-lg">
+                WPS Micro combines explicit routes, Twig views, migrations, validation, sessions, and a compact service container.
+            </p>
+
+            {% if auth_user is defined and auth_user %}
+                <div class="mx-auto mt-7 max-w-xl rounded-lg border border-brand-100 bg-brand-50 px-4 py-4 text-sm text-brand-700">
                     Signed in as <strong>{{ auth_user.name }}</strong> ({{ auth_user.email }}).
+                    <a href="{{ url('/account') }}" class="ml-1 font-semibold underline underline-offset-4">View account</a>
                 </div>
-                <a href="{{ url('/account') }}" class="btn btn-sm btn-success">View account</a>
-            </div>
-        {% endif %}
-        <div class="card text-center">
-            <form action="/" method="post" class="my-2 form">
-                {{ csrf_field() }}
-                <div class="input-group px-4 py-2">
-                    <div class="input-group-prepend">
-                        <span class="input-group-text"><i class="fa fa-bars pr-2" aria-hidden="true"></i>Select example</span>
+            {% else %}
+                <div class="mt-7 flex flex-wrap justify-center gap-3">
+                    <a href="{{ url('/login') }}"
+                       class="inline-flex min-h-10 items-center justify-center rounded-lg border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-800 transition hover:border-zinc-400 hover:bg-zinc-50 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2">
+                        Log in
+                    </a>
+                    <a href="{{ url('/register') }}"
+                       class="inline-flex min-h-10 items-center justify-center rounded-lg bg-brand-600 px-4 text-sm font-semibold text-white transition hover:bg-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2">
+                        Create account
+                    </a>
+                </div>
+            {% endif %}
+        </section>
+
+        {% if messages %}
+            <section class="mt-14" aria-labelledby="stored-messages-title">
+                <div class="mb-4 flex items-end justify-between gap-4">
+                    <div>
+                        <p class="text-sm font-medium text-brand-700">Model example</p>
+                        <h2 class="mt-1 text-xl font-semibold text-zinc-950" id="stored-messages-title">Messages from the database</h2>
                     </div>
-                    <select name="type-redirect" class="form-control">
-                        <option value="1">option 1</option>
-                        <option value="2">option 2</option>
-                    </select>
+                    <span class="rounded-full bg-zinc-100 px-3 py-1 text-xs font-medium text-zinc-600">{{ messages|length }} loaded</span>
                 </div>
-                <div class="input-group px-4 py-2">
-                    <div class="input-group-prepend">
-                        <span class="input-group-text"><i class="fa fa-share-alt pr-2" aria-hidden="true"></i>Input example</span>
-                    </div>
-                    <input type="text" name="url-data" id="url-data" class="form-control" placeholder="placeholder example" aria-describedby="url-data">
+                <div class="divide-y divide-zinc-200 overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-sm">
+                    {% for message in messages %}
+                        <article class="px-5 py-4">
+                            <h3 class="font-semibold text-zinc-950">{{ message.title }}</h3>
+                            <p class="mt-1 leading-6 text-zinc-600">{{ message.body }}</p>
+                            <p class="mt-2 text-xs text-zinc-400">{{ message.created_at }}</p>
+                        </article>
+                    {% endfor %}
                 </div>
-                <div class="form-group row">
-                    <div class="col-sm-12 py-2">
-                        <button type="submit" class="btn btn-success tooltip-show" title="Creating kml file">Example button</button>
-                    </div>
-                </div>
-            </form>
-        </div>
-        {% if messages is defined and messages %}
-            <section class="mt-4 text-left">
-                <h2>Stored messages</h2>
-                {% for message in messages %}
-                    <article class="mb-3">
-                        <h3>{{ message.title }}</h3>
-                        <p>{{ message.body }}</p>
-                    </article>
-                {% endfor %}
             </section>
         {% endif %}
     </div>

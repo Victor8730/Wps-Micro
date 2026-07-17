@@ -3,11 +3,18 @@
 # application vendor and cache file
 application/vendor/*
 application/Cache/*
-# composer lock
-composer.lock
 
-# local environment file
+# frontend dependencies and generated assets
+node_modules/
+public/build/
+
+# local environment files
 .env
+.env.*
+!.env.production.example
+
+# application log files
+*.log
 
 # macOS metadata files
 .DS_Store

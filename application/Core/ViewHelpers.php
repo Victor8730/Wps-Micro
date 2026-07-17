@@ -22,6 +22,11 @@ class ViewHelpers
     private Session $session;
 
     /**
+     * Vite asset tag renderer.
+     */
+    private Vite $vite;
+
+    /**
      * Cached validation errors for the current render.
      */
     private ?array $errors = null;
@@ -34,11 +39,12 @@ class ViewHelpers
     /**
      * Create view helpers.
      */
-    public function __construct(Config $config, Csrf $csrf, Session $session)
+    public function __construct(Config $config, Csrf $csrf, Session $session, Vite $vite)
     {
         $this->config = $config;
         $this->csrf = $csrf;
         $this->session = $session;
+        $this->vite = $vite;
     }
 
     /**
@@ -48,6 +54,7 @@ class ViewHelpers
     {
         $twig->addFunction(new \Twig\TwigFunction('asset', [$this, 'asset']));
         $twig->addFunction(new \Twig\TwigFunction('url', [$this, 'url']));
+        $twig->addFunction(new \Twig\TwigFunction('vite', [$this->vite, 'tags'], ['is_safe' => ['html']]));
         $twig->addFunction(new \Twig\TwigFunction('csrf_token', [$this->csrf, 'token']));
         $twig->addFunction(new \Twig\TwigFunction('csrf_field', [$this->csrf, 'field'], ['is_safe' => ['html']]));
         $twig->addFunction(new \Twig\TwigFunction('old', [$this, 'old']));

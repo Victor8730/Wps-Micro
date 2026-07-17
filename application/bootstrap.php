@@ -8,5 +8,4 @@ require_once __DIR__ . '/vendor/autoload.php';
 
 Env::load(dirname(__DIR__) . '/.env');
 
-$kernel = Kernel::fromConfigFile(__DIR__ . '/Config/app.php');
-$kernel->handleGlobals()->send();
+return Kernel::fromConfigFile(__DIR__ . '/Config/app.php');

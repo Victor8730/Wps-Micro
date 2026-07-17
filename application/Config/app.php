@@ -46,6 +46,14 @@ return [
     'logging' => [
         'path' => $path('LOG_PATH', 'application/Cache/app.log'),
     ],
+    'errors' => [
+        'not_found' => [\Controllers\Controller404::class, 'actionIndex'],
+    ],
+    'vite' => [
+        'dev_server_url' => Env::get('VITE_DEV_SERVER_URL', ''),
+        'manifest_path' => $path('VITE_MANIFEST_PATH', 'public/build/.vite/manifest.json'),
+        'build_path' => Env::get('VITE_BUILD_PATH', 'build'),
+    ],
     'twig' => [
         'views_path' => $path('TWIG_VIEWS_PATH', 'application/Views'),
         'cache_path' => $path('TWIG_CACHE_PATH', 'application/Cache'),
