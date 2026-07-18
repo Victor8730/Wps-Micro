@@ -198,7 +198,7 @@ Request -> Global Middleware -> Router -> Route Middleware -> Controller -> Resp
 - Route middleware runs after matching and before the controller is created.
 - `Dispatcher` creates the controller, executes the action, and normalizes the result.
 - `Controller` actions should return a `Response`.
-- `Response` sends status, headers, and content to the client.
+- `Response` sends status, single-value or multi-value headers, and content to the client.
 
 ## Routing
 
@@ -208,6 +208,7 @@ application kernel:
 ```php
 $router->get('/', [ControllerHome::class, 'actionIndex']);
 $router->get('/products/{id}', [ControllerProduct::class, 'actionShow']);
+$router->head('/health', [ControllerHealth::class, 'actionHead']);
 $router->post('/cart/add', [ControllerCart::class, 'actionAdd']);
 ```
 
@@ -225,7 +226,9 @@ public function actionShow(string $id): Response
 
 Forms can use `_method` to match `PUT`, `PATCH`, and `DELETE` routes.
 When a path exists for another HTTP method, the framework returns a `405 Method
-Not Allowed` response with an `Allow` header.
+Not Allowed` response with an `Allow` header. A `HEAD` request first checks for
+an explicit `HEAD` route and then falls back to the matching `GET` route. The
+response preserves its status and headers but does not send a body.
 
 Unsafe form methods require a CSRF token:
 
@@ -271,9 +274,10 @@ such as `404` and `405` are resolved before a session is opened.
 ## Application Kernel
 
 `Kernel` builds the framework infrastructure through a small shared-service
-container. It creates the configured Twig environment, database connection,
-`Router`, and `Dispatcher`; controller dependencies are resolved through
-constructor injection.
+container. It creates the configured database connection, `Router`, and
+`Dispatcher`; controller dependencies are resolved through constructor
+injection. Twig is hidden behind a lazy `ViewRenderer`, so JSON controllers do
+not initialize the template engine or its cache.
 
 The container implements PSR-11, supports explicit interface bindings, detects
 circular dependencies, and binds the current `Request` by type while the
@@ -300,6 +304,32 @@ $request->cookie('theme');
 Malformed JSON receives a `400 Bad Request` response. A client can request JSON
 errors with `Accept: application/json`.
 
+## Responses
+
+Controller actions can render HTML, return JSON, or redirect through the base
+controller helpers:
+
+```php
+return $this->render('products/show.twig', ['product' => $product]);
+return $this->json(['product' => $product], 200);
+return $this->redirect('/products');
+```
+
+Response headers are case-insensitive. Use `setHeader()` to replace a value and
+`addHeader()` when a header needs multiple values:
+
+```php
+$response = $this->json(['status' => 'ok']);
+$response->setHeader('Cache-Control', 'no-store');
+$response->addHeader('Set-Cookie', 'theme=dark; Path=/; SameSite=Lax');
+$response->addHeader('Set-Cookie', 'locale=en; Path=/; SameSite=Lax');
+
+return $response;
+```
+
+Header names and values are validated, and values containing line breaks are
+rejected. Status codes must be between `100` and `599`.
+
 ## Model Layer
 
 Models receive a configured `PDO` connection from the container and should focus
@@ -316,13 +346,15 @@ Controllers can validate request input with simple rules:
 
 ```php
 $data = $this->validate([
-    'name' => 'required|min:2|max:120',
-    'email' => 'required|email|max:255',
+    'name' => 'required|string|min:2|max:120',
+    'email' => 'required|string|email|max:255',
     'age' => 'nullable|integer',
     'price' => 'required|numeric',
-    'website' => 'nullable|url',
+    'website' => 'nullable|string|url',
+    'active' => 'required|boolean',
+    'tags' => 'nullable|array',
     'role' => 'required|in:admin,editor,customer',
-    'password' => 'required|min:8|max:255|confirmed',
+    'password' => 'required|string|min:8|max:255|confirmed',
 ]);
 ```
 
@@ -338,6 +370,9 @@ $data = $this->validate([
 | --- | --- | --- |
 | `required` | `required` | The field must be present and not empty. |
 | `nullable` | `nullable` | The field may be `null` or an empty string. |
+| `string` | `string` | The value must be a string. |
+| `array` | `array` | The value must be an array. |
+| `boolean` | `boolean` | The value must be `true`, `false`, `0`, `1`, `"0"`, or `"1"`. |
 | `email` | `email` | The value must be a valid email address. |
 | `integer` | `integer` | The value must be a valid integer. |
 | `numeric` | `numeric` | The value must be numeric. |
@@ -348,9 +383,11 @@ $data = $this->validate([
 | `confirmed` | `confirmed` | The value must match the corresponding `_confirmation` field. |
 
 For example, `password|confirmed` expects a `password_confirmation` input with
-the same value. Fields without the `required` rule are optional. On validation
-failure the framework flashes errors and old input, then redirects back.
-Requests that expect JSON receive a `422` response.
+the same value. Fields without the `required` rule are optional. `min` and `max`
+measure string length, so use the `string` rule for those fields. On browser
+validation failure the framework flashes errors and non-sensitive old input,
+then redirects only to a same-origin location. Requests that expect JSON return
+`422` immediately without opening or writing to the session.
 
 The validator is intentionally stateless and only validates request data. File
 operations, remote URL checks, and other I/O belong in dedicated application
@@ -358,10 +395,11 @@ services where timeouts and failures can be handled explicitly.
 
 ## Sessions
 
-Controllers receive a shared `Session` service through the base controller. Use
-`$this->session->get()`, `$this->session->set()`, and
-`$this->session->flash()` for simple state such as carts, flash messages, and
-authentication markers.
+Controllers that use sessions receive the shared `Session` service through
+constructor injection. Store it on that controller and use `get()`, `set()`,
+and `flash()` for simple state such as carts, flash messages, and
+authentication markers. Controllers that do not declare `Session` avoid that
+dependency entirely.
 
 The PHP session starts lazily on the first session read or write. Requests that
 do not use session data avoid opening the session and acquiring its lock.

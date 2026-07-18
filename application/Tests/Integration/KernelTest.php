@@ -63,6 +63,48 @@ final class KernelTest extends TestCase
         self::assertFalse($session->isStarted());
     }
 
+    public function testJsonControllersDoNotInitializeTwig(): void
+    {
+        $fixtures = dirname(__DIR__) . '/Fixtures';
+        $twigCachePath = $this->cachePath . '/twig-unused';
+        $kernel = new Kernel(new Config([
+            'app' => [
+                'debug' => false,
+                'url' => 'https://example.test',
+            ],
+            'router' => [
+                'routes_path' => $fixtures . '/routes.php',
+            ],
+            'middleware' => [
+                'global' => [],
+                'route' => [],
+            ],
+            'session' => [],
+            'logging' => [
+                'path' => $this->cachePath . '/app.log',
+            ],
+            'twig' => [
+                'views_path' => $fixtures . '/missing-views',
+                'cache_path' => $twigCachePath,
+                'auto_reload' => false,
+                'autoescape' => 'html',
+            ],
+        ]));
+
+        $response = $kernel->handle(new Request(
+            'GET',
+            '/json',
+            [],
+            [],
+            [],
+            ['Accept' => 'application/json']
+        ));
+
+        self::assertSame(200, $response->getStatusCode());
+        self::assertSame('{"status":"ok"}', $response->getContent());
+        self::assertDirectoryDoesNotExist($twigCachePath);
+    }
+
     private function removeDirectory(string $path): void
     {
         if (!is_dir($path)) {

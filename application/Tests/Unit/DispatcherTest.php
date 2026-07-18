@@ -83,11 +83,11 @@ final class DispatcherTest extends TestCase
         $payload = json_decode($response->getContent(), true, 512, JSON_THROW_ON_ERROR);
 
         self::assertSame(405, $response->getStatusCode());
-        self::assertSame('GET', $response->getHeaders()['Allow'] ?? null);
+        self::assertSame('GET, HEAD', $response->getHeaders()['Allow'] ?? null);
         self::assertSame(['message' => 'Method not allowed'], $payload);
     }
 
-    public function testValidationDoesNotFlashSensitiveInput(): void
+    public function testJsonValidationDoesNotStartOrWriteToTheSession(): void
     {
         $config = new Config([
             'app' => ['debug' => false],
@@ -120,10 +120,48 @@ final class DispatcherTest extends TestCase
         ));
 
         self::assertSame(422, $response->getStatusCode());
-        self::assertSame(
-            ['email' => 'victor@example.com'],
-            $session->flashed['old_input'] ?? null
+        self::assertSame([], $session->flashed);
+    }
+
+    public function testBrowserValidationUsesOnlySameOriginRedirectTargets(): void
+    {
+        $config = new Config([
+            'app' => ['debug' => false],
+            'logging' => ['path' => $this->logPath],
+        ]);
+        $router = new Router();
+        $router->post('/register', [ValidationFailureController::class, 'store']);
+        $container = new Container();
+        $session = new CapturingSession();
+        $container->instance(Session::class, $session);
+        $dispatcher = new Dispatcher(
+            $router,
+            $container,
+            new MiddlewarePipeline($container),
+            new ErrorHandler($config),
+            appUrl: 'https://example.test'
         );
+
+        $sameOrigin = $dispatcher->dispatch(new Request(
+            'POST',
+            '/register',
+            [],
+            ['email' => 'victor@example.com', 'password' => 'secret'],
+            [],
+            ['Referer' => 'https://example.test/register?step=2']
+        ));
+        $externalOrigin = $dispatcher->dispatch(new Request(
+            'POST',
+            '/register',
+            [],
+            ['email' => 'victor@example.com'],
+            [],
+            ['Referer' => 'https://attacker.test/phishing']
+        ));
+
+        self::assertSame('/register?step=2', $sameOrigin->getHeaders()['Location'] ?? null);
+        self::assertSame('/register', $externalOrigin->getHeaders()['Location'] ?? null);
+        self::assertSame(['email' => 'victor@example.com'], $session->flashed['old_input'] ?? null);
     }
 
     public function testItUsesTheConfiguredNotFoundAction(): void
@@ -148,6 +186,30 @@ final class DispatcherTest extends TestCase
 
         self::assertSame(404, $response->getStatusCode());
         self::assertSame('Custom not found page', $response->getContent());
+    }
+
+    public function testHeadResponsesKeepHeadersButDoNotReturnContent(): void
+    {
+        $config = new Config([
+            'app' => ['debug' => false],
+            'logging' => ['path' => $this->logPath],
+        ]);
+        $router = new Router();
+        $router->get('/status', [HeadResponseController::class, 'show']);
+        $container = new Container();
+        $dispatcher = new Dispatcher(
+            $router,
+            $container,
+            new MiddlewarePipeline($container),
+            new ErrorHandler($config)
+        );
+
+        $response = $dispatcher->dispatch(new Request('HEAD', '/status'));
+
+        self::assertSame(200, $response->getStatusCode());
+        self::assertSame('', $response->getContent());
+        self::assertSame('ready', $response->getHeader('X-Status'));
+        self::assertSame('11', $response->getHeader('Content-Length'));
     }
 }
 
@@ -182,6 +244,14 @@ final class NotFoundController
     public function show(): Response
     {
         return new Response('Custom not found page');
+    }
+}
+
+final class HeadResponseController
+{
+    public function show(): Response
+    {
+        return new Response('service-ok!', 200, ['X-Status' => 'ready']);
     }
 }
 

@@ -5,17 +5,24 @@ declare(strict_types=1);
 namespace Controllers;
 
 use Core\Controller;
-use Core\Csrf;
 use Core\Request;
 use Core\Response;
 use Core\Session;
 use Core\Validator;
+use Core\ViewRenderer;
 use Exceptions\ValidationException;
 use Services\AuthService;
-use Twig\Environment;
 
 class ControllerAuth extends Controller
 {
+    /**
+     * Session storage used for authentication messages.
+     */
+    private Session $session;
+
+    /**
+     * Authentication service.
+     */
     private AuthService $auth;
 
     /**
@@ -23,15 +30,15 @@ class ControllerAuth extends Controller
      */
     public function __construct(
         Request $request,
-        Environment $view,
-        Session $session,
-        Csrf $csrf,
+        ViewRenderer $view,
         Validator $validator,
+        Session $session,
         AuthService $auth
     ) {
+        $this->session = $session;
         $this->auth = $auth;
 
-        parent::__construct($request, $view, $session, $csrf, $validator);
+        parent::__construct($request, $view, $validator);
     }
 
     /**
@@ -54,8 +61,8 @@ class ControllerAuth extends Controller
     public function actionAuthenticate(): Response
     {
         $credentials = $this->validate([
-            'email' => 'required|email|max:255',
-            'password' => 'required|min:8|max:255',
+            'email' => 'required|string|email|max:255',
+            'password' => 'required|string|min:8|max:255',
         ]);
 
         if (!$this->auth->attempt($credentials['email'], $credentials['password'])) {
@@ -90,9 +97,9 @@ class ControllerAuth extends Controller
     public function actionStore(): Response
     {
         $data = $this->validate([
-            'name' => 'required|min:2|max:120',
-            'email' => 'required|email|max:255',
-            'password' => 'required|min:8|max:255|confirmed',
+            'name' => 'required|string|min:2|max:120',
+            'email' => 'required|string|email|max:255',
+            'password' => 'required|string|min:8|max:255|confirmed',
         ]);
 
         $user = $this->auth->register($data['name'], $data['email'], $data['password']);

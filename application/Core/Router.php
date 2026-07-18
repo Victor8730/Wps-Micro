@@ -25,6 +25,16 @@ class Router
     }
 
     /**
+     * Register a HEAD route.
+     *
+     * @param array|string $handler
+     */
+    public function head(string $path, $handler): RouteDefinition
+    {
+        return $this->add('HEAD', $path, $handler);
+    }
+
+    /**
      * Register a POST route.
      *
      * @param array|string $handler
@@ -100,18 +110,22 @@ class Router
      */
     public function match(Request $request): RouteMatch
     {
-        foreach ($this->routes as $route) {
-            if ($route['method'] !== $request->getMethod()) {
-                continue;
+        $methods = $request->getMethod() === 'HEAD' ? ['HEAD', 'GET'] : [$request->getMethod()];
+
+        foreach ($methods as $method) {
+            foreach ($this->routes as $route) {
+                if ($route['method'] !== $method) {
+                    continue;
+                }
+
+                $parameters = $this->matchPath($route['path'], $request->getPath());
+
+                if ($parameters === null) {
+                    continue;
+                }
+
+                return $this->buildRouteMatch($route['handler'], $parameters, $route['middleware']);
             }
-
-            $parameters = $this->matchPath($route['path'], $request->getPath());
-
-            if ($parameters === null) {
-                continue;
-            }
-
-            return $this->buildRouteMatch($route['handler'], $parameters, $route['middleware']);
         }
 
         $allowedMethods = $this->allowedMethods($request->getPath(), $request->getMethod());
@@ -137,6 +151,10 @@ class Router
 
             if ($this->matchPath($route['path'], $path) !== null) {
                 $methods[] = $route['method'];
+
+                if ($route['method'] === 'GET') {
+                    $methods[] = 'HEAD';
+                }
             }
         }
 

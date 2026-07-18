@@ -47,6 +47,11 @@ class Dispatcher
     private array $notFoundAction;
 
     /**
+     * Configured application URL used to validate redirect origins.
+     */
+    private string $appUrl;
+
+    /**
      * Create a dispatcher.
      */
     public function __construct(
@@ -56,7 +61,8 @@ class Dispatcher
         ErrorHandler $errorHandler,
         array $globalMiddleware = [],
         array $routeMiddleware = [],
-        array $notFoundAction = []
+        array $notFoundAction = [],
+        string $appUrl = ''
     ) {
         $this->router = $router;
         $this->container = $container;
@@ -65,6 +71,7 @@ class Dispatcher
         $this->globalMiddleware = $globalMiddleware;
         $this->routeMiddleware = $routeMiddleware;
         $this->notFoundAction = $notFoundAction;
+        $this->appUrl = rtrim($appUrl, '/');
     }
 
     /**
@@ -72,7 +79,7 @@ class Dispatcher
      */
     public function dispatch(Request $request): Response
     {
-        return $this->handleExceptions($request, function () use ($request): Response {
+        $response = $this->handleExceptions($request, function () use ($request): Response {
             return $this->pipeline->handle(
                 $request,
                 $this->globalMiddleware,
@@ -83,6 +90,8 @@ class Dispatcher
                 }
             );
         });
+
+        return $this->prepareResponse($request, $response);
     }
 
     /**
@@ -249,18 +258,16 @@ class Dispatcher
      */
     private function validationFailed(Request $request, ValidationException $exception): Response
     {
+        if ($request->expectsJson()) {
+            return new JsonResponse(['errors' => $exception->errors()], 422);
+        }
+
         /** @var Session $session */
         $session = $this->container->get(Session::class);
         $session->flash('errors', $exception->errors());
         $session->flash('old_input', $this->flashableInput($request));
 
-        if ($request->expectsJson()) {
-            return new JsonResponse(['errors' => $exception->errors()], 422);
-        }
-
-        $target = $request->getHeader('Referer', $request->getPath()) ?: '/';
-
-        return new RedirectResponse($target);
+        return new RedirectResponse($this->validationRedirectTarget($request));
     }
 
     /**
@@ -279,5 +286,102 @@ class Dispatcher
         }
 
         return $input;
+    }
+
+    /**
+     * Apply request-method-specific response semantics.
+     */
+    private function prepareResponse(Request $request, Response $response): Response
+    {
+        if ($request->getMethod() !== 'HEAD') {
+            return $response;
+        }
+
+        if (!$response->hasHeader('Content-Length')) {
+            $response->setHeader('Content-Length', (string) strlen($response->getContent()));
+        }
+
+        return $response->setContent('');
+    }
+
+    /**
+     * Return a same-origin validation redirect target.
+     */
+    private function validationRedirectTarget(Request $request): string
+    {
+        $fallback = $request->getPath() ?: '/';
+        $referer = $request->getHeader('Referer');
+
+        if (
+            $referer === null
+            || $referer === ''
+            || preg_match('/[\x00-\x1F\x7F]/', $referer)
+        ) {
+            return $fallback;
+        }
+
+        $parts = parse_url($referer);
+
+        if (!is_array($parts) || !$this->hasSafeOrigin($parts)) {
+            return $fallback;
+        }
+
+        $path = (string) ($parts['path'] ?? '/');
+        $decodedPath = rawurldecode($path);
+
+        if (
+            !str_starts_with($path, '/')
+            || str_starts_with($decodedPath, '//')
+            || str_contains($decodedPath, '\\')
+            || preg_match('/[\x00-\x1F\x7F]/', $decodedPath)
+        ) {
+            return $fallback;
+        }
+
+        $query = isset($parts['query']) ? '?' . $parts['query'] : '';
+
+        return $path . $query;
+    }
+
+    /**
+     * Check whether parsed URL parts use the configured application origin.
+     */
+    private function hasSafeOrigin(array $parts): bool
+    {
+        if (!isset($parts['host']) && !isset($parts['scheme'])) {
+            return true;
+        }
+
+        $appParts = parse_url($this->appUrl);
+
+        if (
+            !is_array($appParts)
+            || !isset($appParts['scheme'], $appParts['host'])
+            || !isset($parts['scheme'], $parts['host'])
+        ) {
+            return false;
+        }
+
+        return strtolower((string) $parts['scheme']) === strtolower((string) $appParts['scheme'])
+            && strtolower((string) $parts['host']) === strtolower((string) $appParts['host'])
+            && $this->urlPort($parts) === $this->urlPort($appParts);
+    }
+
+    /**
+     * Return an explicit or scheme-default URL port.
+     */
+    private function urlPort(array $parts): ?int
+    {
+        if (isset($parts['port'])) {
+            return (int) $parts['port'];
+        }
+
+        $scheme = strtolower((string) ($parts['scheme'] ?? ''));
+
+        if ($scheme === 'https') {
+            return 443;
+        }
+
+        return $scheme === 'http' ? 80 : null;
     }
 }

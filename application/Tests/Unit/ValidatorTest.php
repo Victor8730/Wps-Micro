@@ -79,4 +79,59 @@ final class ValidatorTest extends TestCase
             'password' => 'required|confirmed',
         ]);
     }
+
+    public function testItValidatesExplicitInputTypes(): void
+    {
+        $validator = new Validator();
+        $validated = $validator->validate([
+            'title' => 'Product',
+            'tags' => ['php', 'twig'],
+            'active' => '1',
+        ], [
+            'title' => 'required|string',
+            'tags' => 'required|array',
+            'active' => 'required|boolean',
+        ]);
+
+        self::assertSame([
+            'title' => 'Product',
+            'tags' => ['php', 'twig'],
+            'active' => '1',
+        ], $validated);
+    }
+
+    public function testItRejectsArraysForStringRulesWithoutWarnings(): void
+    {
+        $validator = new Validator();
+
+        try {
+            $validator->validate([
+                'name' => ['unexpected'],
+            ], [
+                'name' => 'required|string|min:2|max:120',
+            ]);
+        } catch (ValidationException $exception) {
+            self::assertSame(
+                ['name' => ['name must be a string.']],
+                $exception->errors()
+            );
+
+            return;
+        }
+
+        self::fail('An array was accepted as a string.');
+    }
+
+    public function testRequiredRejectsAnEmptyArray(): void
+    {
+        $validator = new Validator();
+
+        $this->expectException(ValidationException::class);
+
+        $validator->validate([
+            'items' => [],
+        ], [
+            'items' => 'required|array',
+        ]);
+    }
 }

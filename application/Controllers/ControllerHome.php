@@ -5,11 +5,10 @@ declare(strict_types=1);
 namespace Controllers;
 
 use Core\Controller;
-use Core\Csrf;
 use Core\Request;
 use Core\Response;
-use Core\Session;
 use Core\Validator;
+use Core\ViewRenderer;
 use Models\Home;
 use Services\AuthService;
 
@@ -30,9 +29,7 @@ class ControllerHome extends Controller
      */
     public function __construct(
         Request $request,
-        \Twig\Environment $view,
-        Session $session,
-        Csrf $csrf,
+        ViewRenderer $view,
         Validator $validator,
         Home $home,
         AuthService $auth
@@ -40,7 +37,7 @@ class ControllerHome extends Controller
         $this->home = $home;
         $this->auth = $auth;
 
-        parent::__construct($request, $view, $session, $csrf, $validator);
+        parent::__construct($request, $view, $validator);
     }
 
     /**

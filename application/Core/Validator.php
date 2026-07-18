@@ -26,7 +26,7 @@ class Validator
             foreach ($fieldRules as $rule) {
                 $message = $this->validateRule((string) $field, $value, (string) $rule, $data);
 
-                if ($message !== null) {
+                if ($message !== null && !in_array($message, $errors[$field] ?? [], true)) {
                     $errors[$field][] = $message;
                 }
             }
@@ -62,21 +62,52 @@ class Validator
 
         switch ($name) {
             case 'required':
-                return $value === null || $value === '' ? $field . ' is required.' : null;
+                return in_array($value, [null, '', []], true) ? $field . ' is required.' : null;
+            case 'string':
+                return !is_string($value) ? $field . ' must be a string.' : null;
+            case 'array':
+                return !is_array($value) ? $field . ' must be an array.' : null;
+            case 'boolean':
+                return !$this->isBoolean($value) ? $field . ' must be true or false.' : null;
             case 'email':
-                return filter_var($value, FILTER_VALIDATE_EMAIL) === false ? $field . ' must be a valid email.' : null;
+                return !is_string($value) || filter_var($value, FILTER_VALIDATE_EMAIL) === false
+                    ? $field . ' must be a valid email.'
+                    : null;
             case 'integer':
-                return filter_var($value, FILTER_VALIDATE_INT) === false ? $field . ' must be an integer.' : null;
+                return (
+                    (!is_int($value) && !is_string($value))
+                    || filter_var($value, FILTER_VALIDATE_INT) === false
+                )
+                    ? $field . ' must be an integer.'
+                    : null;
             case 'numeric':
-                return !is_numeric($value) ? $field . ' must be numeric.' : null;
+                return is_bool($value) || !is_numeric($value) ? $field . ' must be numeric.' : null;
             case 'url':
-                return filter_var($value, FILTER_VALIDATE_URL) === false ? $field . ' must be a valid URL.' : null;
+                return !is_string($value) || filter_var($value, FILTER_VALIDATE_URL) === false
+                    ? $field . ' must be a valid URL.'
+                    : null;
             case 'min':
-                return $this->length($value) < (int) $parameter ? $field . ' must be at least ' . $parameter . ' characters.' : null;
+                if (!is_string($value)) {
+                    return $field . ' must be a string.';
+                }
+
+                return $this->length($value) < (int) $parameter
+                    ? $field . ' must be at least ' . $parameter . ' characters.'
+                    : null;
             case 'max':
-                return $this->length($value) > (int) $parameter ? $field . ' may not be greater than ' . $parameter . ' characters.' : null;
+                if (!is_string($value)) {
+                    return $field . ' must be a string.';
+                }
+
+                return $this->length($value) > (int) $parameter
+                    ? $field . ' may not be greater than ' . $parameter . ' characters.'
+                    : null;
             case 'in':
                 $allowed = $parameter === null ? [] : explode(',', $parameter);
+
+                if (!is_scalar($value)) {
+                    return $field . ' is invalid.';
+                }
 
                 return !in_array((string) $value, $allowed, true) ? $field . ' is invalid.' : null;
             case 'confirmed':
@@ -96,8 +127,18 @@ class Validator
      *
      * @param mixed $value
      */
-    private function length($value): int
+    private function length(string $value): int
     {
-        return mb_strlen((string) $value);
+        return mb_strlen($value);
+    }
+
+    /**
+     * Check whether a value is a supported boolean representation.
+     *
+     * @param mixed $value
+     */
+    private function isBoolean($value): bool
+    {
+        return in_array($value, [true, false, 0, 1, '0', '1'], true);
     }
 }

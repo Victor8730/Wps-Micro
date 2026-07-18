@@ -14,6 +14,6 @@ class Controller404 extends Controller
      */
     public function actionIndex(): Response
     {
-        return $this->render($this->getNameView(), [], 404);
+        return $this->render('404.twig', [], 404);
     }
 }

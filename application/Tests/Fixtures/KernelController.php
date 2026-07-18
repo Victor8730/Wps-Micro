@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Fixtures;
 
 use Core\Controller;
+use Core\JsonResponse;
 use Core\Response;
 
 final class KernelController extends Controller
@@ -15,5 +16,10 @@ final class KernelController extends Controller
             'name' => $name,
             'method' => $this->request->getMethod(),
         ]);
+    }
+
+    public function status(): JsonResponse
+    {
+        return $this->json(['status' => 'ok']);
     }
 }

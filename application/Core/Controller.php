@@ -12,24 +12,9 @@ class Controller
     protected Request $request;
 
     /**
-     * Twig view renderer.
+     * Lazy view renderer.
      */
-    protected \Twig\Environment $view;
-
-    /**
-     * Indicates whether the current request is an XMLHttpRequest request.
-     */
-    protected bool $isAjax;
-
-    /**
-     * Session storage helper.
-     */
-    protected Session $session;
-
-    /**
-     * CSRF helper.
-     */
-    protected Csrf $csrf;
+    protected ViewRenderer $view;
 
     /**
      * Request validator.
@@ -41,36 +26,12 @@ class Controller
      */
     public function __construct(
         Request $request,
-        \Twig\Environment $view,
-        Session $session,
-        Csrf $csrf,
+        ViewRenderer $view,
         Validator $validator
     ) {
         $this->request = $request;
         $this->view = $view;
-        $this->session = $session;
-        $this->csrf = $csrf;
         $this->validator = $validator;
-        $this->isAjax = $this->request->isAjax();
-    }
-
-    /**
-     * Return the current controller class name.
-     */
-    public function __toString(): string
-    {
-        return get_class($this);
-    }
-
-    /**
-     * Build a JSON response for an AJAX request.
-     */
-    protected function ajaxResponse(bool $success = true, string $message = ''): JsonResponse
-    {
-        return $this->json([
-            'success' => $success,
-            'message' => $message,
-        ]);
     }
 
     /**
@@ -105,23 +66,5 @@ class Controller
     protected function redirect(string $url): RedirectResponse
     {
         return new RedirectResponse($url);
-    }
-
-    /**
-     * Store current request input for the next response.
-     */
-    protected function flashInput(): void
-    {
-        $this->session->flash('old_input', $this->request->getRequest());
-    }
-
-    /**
-     * Build a default Twig template name from the current controller name.
-     */
-    protected function getNameView(): string
-    {
-        $nameTemplate = explode('\Controller', $this->__toString());
-
-        return mb_strtolower($nameTemplate[1]) . '.twig';
     }
 }

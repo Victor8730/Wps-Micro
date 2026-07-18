@@ -106,6 +106,15 @@ class Kernel
             return $twig;
         });
 
+        $this->container->set(ViewRenderer::class, static function (Container $container): ViewRenderer {
+            return new ViewRenderer(static function () use ($container): \Twig\Environment {
+                /** @var \Twig\Environment $twig */
+                $twig = $container->get(\Twig\Environment::class);
+
+                return $twig;
+            });
+        });
+
         $this->container->set(Router::class, static function (): Router {
             return new Router();
         });
@@ -195,7 +204,8 @@ class Kernel
                 $errorHandler,
                 (array) $config->get('middleware.global', []),
                 (array) $config->get('middleware.route', []),
-                (array) $config->get('errors.not_found', [])
+                (array) $config->get('errors.not_found', []),
+                (string) $config->get('app.url', '')
             );
         });
     }
