@@ -1,20 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/12.5/phpunit.xsd"
-         bootstrap="application/vendor/autoload.php"
-         cacheDirectory="application/Cache/phpunit"
+         bootstrap="vendor/autoload.php"
+         cacheDirectory=".phpunit.cache"
          colors="true"
          failOnDeprecation="true"
          failOnWarning="true">
     <testsuites>
         <testsuite name="Framework">
-            <directory>application/Tests</directory>
+            <directory>tests</directory>
         </testsuite>
     </testsuites>
     <source>
         <include>
-            <directory>application/Core</directory>
-            <directory>application/Exceptions</directory>
+            <directory>src</directory>
         </include>
     </source>
 </phpunit>

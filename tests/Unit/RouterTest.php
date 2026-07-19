@@ -1,0 +1,89 @@
+<?php
+
+declare(strict_types=1);
+
+namespace WpsMicro\Tests\Unit;
+
+use PHPUnit\Framework\TestCase;
+use WpsMicro\Core\Exceptions\HttpNotFoundException;
+use WpsMicro\Core\Exceptions\MethodNotAllowedException;
+use WpsMicro\Core\Request;
+use WpsMicro\Core\Response;
+use WpsMicro\Core\Router;
+
+final class RouterTest extends TestCase
+{
+    public function testItMatchesExplicitRoutesAndExtractsParameters(): void
+    {
+        $router = $this->router();
+        $router->get('/products/{id}', [RouterTestController::class, 'show']);
+
+        $match = $router->match(new Request('GET', '/products/42'));
+
+        self::assertSame(RouterTestController::class, $match->getControllerClass());
+        self::assertSame('show', $match->getActionMethod());
+        self::assertSame(['id' => '42'], $match->getParameters());
+    }
+
+    public function testItRejectsMethodsThatAreNotRegisteredForThePath(): void
+    {
+        $router = $this->router();
+        $router->get('/products/{id}', [RouterTestController::class, 'show']);
+        $router->post('/products/{id}', [RouterTestController::class, 'show']);
+
+        try {
+            $router->match(new Request('DELETE', '/products/42'));
+            self::fail('Expected a method not allowed exception.');
+        } catch (MethodNotAllowedException $exception) {
+            self::assertSame(['GET', 'HEAD', 'POST'], $exception->getAllowedMethods());
+        }
+    }
+
+    public function testHeadRequestsUseAnExplicitHeadRouteBeforeGetFallback(): void
+    {
+        $router = $this->router();
+        $router->get('/status', [RouterTestController::class, 'show']);
+        $router->head('/status', [RouterTestController::class, 'head']);
+
+        $match = $router->match(new Request('HEAD', '/status'));
+
+        self::assertSame('head', $match->getActionMethod());
+    }
+
+    public function testHeadRequestsFallBackToGetRoutes(): void
+    {
+        $router = $this->router();
+        $router->get('/status', [RouterTestController::class, 'show']);
+
+        $match = $router->match(new Request('HEAD', '/status'));
+
+        self::assertSame('show', $match->getActionMethod());
+    }
+
+    public function testItDoesNotDiscoverControllersByUrlConvention(): void
+    {
+        $router = $this->router();
+
+        $this->expectException(HttpNotFoundException::class);
+
+        $router->match(new Request('GET', '/legacy/show'));
+    }
+
+    private function router(): Router
+    {
+        return new Router();
+    }
+}
+
+final class RouterTestController
+{
+    public function show(string $id): Response
+    {
+        return new Response($id);
+    }
+
+    public function head(): Response
+    {
+        return new Response();
+    }
+}
