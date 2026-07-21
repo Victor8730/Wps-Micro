@@ -50,7 +50,7 @@ class MiddlewarePipeline
      *
      * @param mixed $middleware
      */
-    private function resolve($middleware): Middleware
+    private function resolve(mixed $middleware): Middleware
     {
         if ($middleware instanceof Middleware) {
             return $middleware;

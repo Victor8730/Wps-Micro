@@ -86,7 +86,7 @@ class ViewHelpers
      *
      * @return mixed
      */
-    public function old(string $key, $default = null)
+    public function old(string $key, mixed $default = null): mixed
     {
         $old = $this->oldInput();
 
@@ -100,7 +100,7 @@ class ViewHelpers
      *
      * @return mixed
      */
-    public function flash(string $key, $default = null)
+    public function flash(string $key, mixed $default = null): mixed
     {
         return $this->session->pullFlash($key, $default);
     }

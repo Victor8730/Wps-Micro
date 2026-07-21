@@ -8,6 +8,22 @@ use WpsMicro\Core\Exceptions\ValidationException;
 
 class Validator
 {
+    private const RULES = [
+        'required',
+        'nullable',
+        'confirmed',
+        'string',
+        'array',
+        'boolean',
+        'email',
+        'url',
+        'integer',
+        'numeric',
+        'min',
+        'max',
+        'in',
+    ];
+
     /**
      * Validate data with simple pipe-separated rules.
      *
@@ -48,9 +64,13 @@ class Validator
      *
      * @param mixed $value
      */
-    private function validateRule(string $field, $value, string $rule, array $data): ?string
+    private function validateRule(string $field, mixed $value, string $rule, array $data): ?string
     {
         [$name, $parameter] = array_pad(explode(':', $rule, 2), 2, null);
+
+        if (!in_array($name, self::RULES, true)) {
+            throw new \InvalidArgumentException('Unknown validation rule: ' . $name);
+        }
 
         if ($name === 'nullable' && ($value === null || $value === '')) {
             return null;
@@ -117,9 +137,9 @@ class Validator
                 return $value !== $confirmation ? $field . ' confirmation does not match.' : null;
             case 'nullable':
                 return null;
-            default:
-                throw new \InvalidArgumentException('Unknown validation rule: ' . $name);
         }
+
+        throw new \LogicException('Validation rule was not handled: ' . $name);
     }
 
     /**
@@ -137,7 +157,7 @@ class Validator
      *
      * @param mixed $value
      */
-    private function isBoolean($value): bool
+    private function isBoolean(mixed $value): bool
     {
         return in_array($value, [true, false, 0, 1, '0', '1'], true);
     }

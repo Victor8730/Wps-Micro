@@ -41,3 +41,45 @@ jobs:
 
       - name: Run tests
         run: composer test
+
+  mariadb:
+    name: MariaDB migrations
+    runs-on: ubuntu-latest
+    services:
+      mariadb:
+        image: mariadb:11.4
+        env:
+          MARIADB_ROOT_PASSWORD: root
+          MARIADB_DATABASE: wps_micro_test
+          MARIADB_USER: wps_micro
+          MARIADB_PASSWORD: secret
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    env:
+      WPS_TEST_MARIADB_HOST: 127.0.0.1
+      WPS_TEST_MARIADB_PORT: 3306
+      WPS_TEST_MARIADB_DATABASE: wps_micro_test
+      WPS_TEST_MARIADB_USERNAME: wps_micro
+      WPS_TEST_MARIADB_PASSWORD: secret
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: json, mbstring, pdo, pdo_mysql, pdo_sqlite
+          coverage: none
+
+      - name: Install dependencies
+        run: composer update --prefer-dist --no-interaction --no-progress
+
+      - name: Run MariaDB migration tests
+        run: vendor/bin/phpunit --configuration phpunit.xml.dist --filter testItMigratesAndRollsBackWithMariaDb

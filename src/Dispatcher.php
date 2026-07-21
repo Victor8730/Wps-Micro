@@ -169,37 +169,24 @@ class Dispatcher
      */
     private function executeAction(object $controller, string $actionMethod, array $parameters = []): Response
     {
-        ob_start();
+        $result = $this->callAction($controller, $actionMethod, $parameters);
 
-        try {
-            $result = $this->callAction($controller, $actionMethod, $parameters);
-            $output = ob_get_clean();
-        } catch (\Throwable $e) {
-            ob_end_clean();
-            throw $e;
+        if (!$result instanceof Response) {
+            throw new \UnexpectedValueException(sprintf(
+                'Controller action %s::%s() must return %s.',
+                $controller::class,
+                $actionMethod,
+                Response::class
+            ));
         }
 
-        $output = $output === false ? '' : $output;
-
-        if ($result instanceof Response) {
-            if ($output !== '') {
-                $result->setContent($output . $result->getContent());
-            }
-
-            return $result;
-        }
-
-        if (is_string($result)) {
-            return new Response($output . $result);
-        }
-
-        return new Response($output);
+        return $result;
     }
 
     /**
      * Call the action with named route parameters.
      */
-    private function callAction(object $controller, string $actionMethod, array $parameters)
+    private function callAction(object $controller, string $actionMethod, array $parameters): mixed
     {
         $reflection = new \ReflectionMethod($controller, $actionMethod);
         $arguments = [];
@@ -242,15 +229,11 @@ class Dispatcher
             return new Response('Page not found', 404);
         }
 
-        try {
-            $this->container->instance(Request::class, $request);
-            $controller = $this->container->make($controllerClass);
+        $this->container->instance(Request::class, $request);
+        $controller = $this->container->make($controllerClass);
 
-            return $this->executeAction($controller, $actionMethod)
-                ->setStatusCode(404);
-        } catch (\Throwable $e) {
-            return new Response('Page not found', 404);
-        }
+        return $this->executeAction($controller, $actionMethod)
+            ->setStatusCode(404);
     }
 
     /**

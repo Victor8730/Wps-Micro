@@ -19,7 +19,7 @@ class Router
      *
      * @param array|string $handler
      */
-    public function get(string $path, $handler): RouteDefinition
+    public function get(string $path, array|string $handler): RouteDefinition
     {
         return $this->add('GET', $path, $handler);
     }
@@ -29,7 +29,7 @@ class Router
      *
      * @param array|string $handler
      */
-    public function head(string $path, $handler): RouteDefinition
+    public function head(string $path, array|string $handler): RouteDefinition
     {
         return $this->add('HEAD', $path, $handler);
     }
@@ -39,7 +39,7 @@ class Router
      *
      * @param array|string $handler
      */
-    public function post(string $path, $handler): RouteDefinition
+    public function post(string $path, array|string $handler): RouteDefinition
     {
         return $this->add('POST', $path, $handler);
     }
@@ -49,7 +49,7 @@ class Router
      *
      * @param array|string $handler
      */
-    public function put(string $path, $handler): RouteDefinition
+    public function put(string $path, array|string $handler): RouteDefinition
     {
         return $this->add('PUT', $path, $handler);
     }
@@ -59,7 +59,7 @@ class Router
      *
      * @param array|string $handler
      */
-    public function patch(string $path, $handler): RouteDefinition
+    public function patch(string $path, array|string $handler): RouteDefinition
     {
         return $this->add('PATCH', $path, $handler);
     }
@@ -69,7 +69,7 @@ class Router
      *
      * @param array|string $handler
      */
-    public function delete(string $path, $handler): RouteDefinition
+    public function delete(string $path, array|string $handler): RouteDefinition
     {
         return $this->add('DELETE', $path, $handler);
     }
@@ -79,7 +79,7 @@ class Router
      *
      * @param array|string $handler
      */
-    public function add($methods, string $path, $handler): RouteDefinition
+    public function add(array|string $methods, string $path, array|string $handler): RouteDefinition
     {
         $indexes = [];
 
@@ -168,7 +168,7 @@ class Router
      *
      * @throws HttpNotFoundException
      */
-    private function buildRouteMatch($handler, array $parameters, array $middleware): RouteMatch
+    private function buildRouteMatch(array|string $handler, array $parameters, array $middleware): RouteMatch
     {
         if (is_string($handler)) {
             $handlerParts = explode('@', $handler, 2);

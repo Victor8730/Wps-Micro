@@ -22,7 +22,7 @@ class Config
     /**
      * Return a configuration value using dot notation.
      */
-    public function get(string $key, $default = null)
+    public function get(string $key, mixed $default = null): mixed
     {
         $value = $this->items;
 

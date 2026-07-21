@@ -60,6 +60,20 @@ final class ContainerTest extends TestCase
         self::assertFalse($container->has(AbstractContainerEntry::class));
         self::assertTrue($container->has(AutowireService::class));
     }
+
+    public function testBoundOnlyReportsExplicitServiceBindings(): void
+    {
+        $container = new Container();
+
+        self::assertTrue($container->has(AutowireService::class));
+        self::assertFalse($container->bound(AutowireService::class));
+
+        $container->set(AutowireService::class, static fn (): AutowireService => new AutowireService(
+            new AutowireDependency()
+        ));
+
+        self::assertTrue($container->bound(AutowireService::class));
+    }
 }
 
 final class AutowireDependency

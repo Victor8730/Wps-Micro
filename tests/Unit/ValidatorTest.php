@@ -134,4 +134,16 @@ final class ValidatorTest extends TestCase
             'items' => 'required|array',
         ]);
     }
+
+    public function testItRejectsUnknownRulesForMissingValues(): void
+    {
+        $validator = new Validator();
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Unknown validation rule: requried');
+
+        $validator->validate([], [
+            'email' => 'requried|email',
+        ]);
+    }
 }

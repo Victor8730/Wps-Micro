@@ -188,6 +188,52 @@ final class DispatcherTest extends TestCase
         self::assertSame('Custom not found page', $response->getContent());
     }
 
+    public function testItLogsFailuresFromTheConfiguredNotFoundAction(): void
+    {
+        $config = new Config([
+            'app' => ['debug' => false],
+            'logging' => ['path' => $this->logPath],
+        ]);
+        $router = new Router();
+        $container = new Container();
+        $dispatcher = new Dispatcher(
+            $router,
+            $container,
+            new MiddlewarePipeline($container),
+            new ErrorHandler($config),
+            [],
+            [],
+            [BrokenNotFoundController::class, 'show']
+        );
+
+        $response = $dispatcher->dispatch(new Request('GET', '/missing'));
+
+        self::assertSame(500, $response->getStatusCode());
+        self::assertStringContainsString('Unable to render the not found page.', file_get_contents($this->logPath));
+    }
+
+    public function testControllerActionsMustReturnAResponse(): void
+    {
+        $config = new Config([
+            'app' => ['debug' => false],
+            'logging' => ['path' => $this->logPath],
+        ]);
+        $router = new Router();
+        $router->get('/legacy', [LegacyController::class, 'show']);
+        $container = new Container();
+        $dispatcher = new Dispatcher(
+            $router,
+            $container,
+            new MiddlewarePipeline($container),
+            new ErrorHandler($config)
+        );
+
+        $response = $dispatcher->dispatch(new Request('GET', '/legacy'));
+
+        self::assertSame(500, $response->getStatusCode());
+        self::assertStringContainsString('must return WpsMicro\\Core\\Response', file_get_contents($this->logPath));
+    }
+
     public function testHeadResponsesKeepHeadersButDoNotReturnContent(): void
     {
         $config = new Config([
@@ -244,6 +290,22 @@ final class NotFoundController
     public function show(): Response
     {
         return new Response('Custom not found page');
+    }
+}
+
+final class BrokenNotFoundController
+{
+    public function show(): Response
+    {
+        throw new \RuntimeException('Unable to render the not found page.');
+    }
+}
+
+final class LegacyController
+{
+    public function show(): string
+    {
+        return 'legacy output';
     }
 }
 

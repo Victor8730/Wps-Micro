@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace WpsMicro\Core;
 
+use WpsMicro\Core\Exceptions\ValidationException;
+
 class Controller
 {
     /**
@@ -53,7 +55,7 @@ class Controller
     /**
      * Validate current request input.
      *
-     * @throws \Exceptions\ValidationException
+     * @throws ValidationException
      */
     protected function validate(array $rules): array
     {

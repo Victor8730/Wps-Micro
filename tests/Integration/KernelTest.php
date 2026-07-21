@@ -6,9 +6,11 @@ namespace WpsMicro\Tests\Integration;
 
 use PHPUnit\Framework\TestCase;
 use WpsMicro\Core\Config;
+use WpsMicro\Core\Container;
 use WpsMicro\Core\Kernel;
 use WpsMicro\Core\Middleware\CsrfMiddleware;
 use WpsMicro\Core\Request;
+use WpsMicro\Core\Router;
 use WpsMicro\Core\Session;
 
 final class KernelTest extends TestCase
@@ -103,6 +105,53 @@ final class KernelTest extends TestCase
         self::assertSame(200, $response->getStatusCode());
         self::assertSame('{"status":"ok"}', $response->getContent());
         self::assertDirectoryDoesNotExist($twigCachePath);
+    }
+
+    public function testItPreservesApplicationContainerBindings(): void
+    {
+        $container = new Container();
+        $router = new Router();
+        $container->instance(Router::class, $router);
+
+        $kernel = new Kernel(new Config([]), $container);
+
+        self::assertSame($router, $kernel->getContainer()->get(Router::class));
+    }
+
+    public function testItRejectsAMissingConfiguredRoutesFile(): void
+    {
+        $path = $this->cachePath . '/missing-routes.php';
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Routes file is not readable: ' . $path);
+
+        new Kernel(new Config([
+            'router' => ['routes_path' => $path],
+        ]));
+    }
+
+    public function testItRejectsRoutesFilesThatDoNotReturnACallable(): void
+    {
+        mkdir($this->cachePath, 0775, true);
+        $path = $this->cachePath . '/routes.php';
+        file_put_contents($path, '<?php return [];');
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Routes file must return a callable: ' . $path);
+
+        new Kernel(new Config([
+            'router' => ['routes_path' => $path],
+        ]));
+    }
+
+    public function testItRejectsAnUnreadableConfigurationPath(): void
+    {
+        $path = $this->cachePath . '/missing-config.php';
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Application configuration file is not readable: ' . $path);
+
+        Kernel::fromConfigFile($path);
     }
 
     private function removeDirectory(string $path): void

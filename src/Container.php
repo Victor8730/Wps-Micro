@@ -53,11 +53,19 @@ class Container implements ContainerInterface
     }
 
     /**
+     * Check whether a service has an explicit factory or instance binding.
+     */
+    public function bound(string $id): bool
+    {
+        return isset($this->instances[$id]) || isset($this->factories[$id]);
+    }
+
+    /**
      * Check whether a service or auto-wirable class is available.
      */
     public function has(string $id): bool
     {
-        if (isset($this->instances[$id]) || isset($this->factories[$id])) {
+        if ($this->bound($id)) {
             return true;
         }
 

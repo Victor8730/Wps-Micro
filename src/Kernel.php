@@ -27,6 +27,10 @@ class Kernel
      */
     public static function fromConfigFile(string $path): self
     {
+        if (!is_file($path) || !is_readable($path)) {
+            throw new \RuntimeException('Application configuration file is not readable: ' . $path);
+        }
+
         $config = require $path;
 
         if (!is_array($config)) {
@@ -82,7 +86,7 @@ class Kernel
      */
     private function registerServices(): void
     {
-        $this->container->set(\Twig\Environment::class, static function (Container $container): \Twig\Environment {
+        $this->setDefault(\Twig\Environment::class, static function (Container $container): \Twig\Environment {
             /** @var Config $config */
             $config = $container->get(Config::class);
             $cachePath = (string) $config->get('twig.cache_path');
@@ -106,7 +110,7 @@ class Kernel
             return $twig;
         });
 
-        $this->container->set(ViewRenderer::class, static function (Container $container): ViewRenderer {
+        $this->setDefault(ViewRenderer::class, static function (Container $container): ViewRenderer {
             return new ViewRenderer(static function () use ($container): \Twig\Environment {
                 /** @var \Twig\Environment $twig */
                 $twig = $container->get(\Twig\Environment::class);
@@ -115,43 +119,43 @@ class Kernel
             });
         });
 
-        $this->container->set(Router::class, static function (): Router {
+        $this->setDefault(Router::class, static function (): Router {
             return new Router();
         });
 
-        $this->container->set(MiddlewarePipeline::class, static function (Container $container): MiddlewarePipeline {
+        $this->setDefault(MiddlewarePipeline::class, static function (Container $container): MiddlewarePipeline {
             return new MiddlewarePipeline($container);
         });
 
-        $this->container->set(ErrorHandler::class, static function (Container $container): ErrorHandler {
+        $this->setDefault(ErrorHandler::class, static function (Container $container): ErrorHandler {
             /** @var Config $config */
             $config = $container->get(Config::class);
 
             return new ErrorHandler($config);
         });
 
-        $this->container->set(Session::class, static function (Container $container): Session {
+        $this->setDefault(Session::class, static function (Container $container): Session {
             /** @var Config $config */
             $config = $container->get(Config::class);
 
             return new Session((array) $config->get('session', []));
         });
 
-        $this->container->set(Csrf::class, static function (Container $container): Csrf {
+        $this->setDefault(Csrf::class, static function (Container $container): Csrf {
             /** @var Session $session */
             $session = $container->get(Session::class);
 
             return new Csrf($session);
         });
 
-        $this->container->set(Vite::class, static function (Container $container): Vite {
+        $this->setDefault(Vite::class, static function (Container $container): Vite {
             /** @var Config $config */
             $config = $container->get(Config::class);
 
             return new Vite($config);
         });
 
-        $this->container->set(ViewHelpers::class, static function (Container $container): ViewHelpers {
+        $this->setDefault(ViewHelpers::class, static function (Container $container): ViewHelpers {
             /** @var Config $config */
             $config = $container->get(Config::class);
             /** @var Csrf $csrf */
@@ -164,21 +168,21 @@ class Kernel
             return new ViewHelpers($config, $csrf, $session, $vite);
         });
 
-        $this->container->set(Database::class, static function (Container $container): Database {
+        $this->setDefault(Database::class, static function (Container $container): Database {
             /** @var Config $config */
             $config = $container->get(Config::class);
 
             return new Database($config);
         });
 
-        $this->container->set(\PDO::class, static function (Container $container): \PDO {
+        $this->setDefault(\PDO::class, static function (Container $container): \PDO {
             /** @var Database $database */
             $database = $container->get(Database::class);
 
             return $database->connect();
         });
 
-        $this->container->set(Migrator::class, static function (Container $container): Migrator {
+        $this->setDefault(Migrator::class, static function (Container $container): Migrator {
             /** @var \PDO $db */
             $db = $container->get(\PDO::class);
             /** @var Config $config */
@@ -187,7 +191,7 @@ class Kernel
             return new Migrator($db, $config);
         });
 
-        $this->container->set(Dispatcher::class, static function (Container $container): Dispatcher {
+        $this->setDefault(Dispatcher::class, static function (Container $container): Dispatcher {
             /** @var Router $router */
             $router = $container->get(Router::class);
             /** @var MiddlewarePipeline $pipeline */
@@ -217,16 +221,34 @@ class Kernel
     {
         $routesPath = (string) $this->container->get(Config::class)->get('router.routes_path', '');
 
-        if ($routesPath === '' || !is_file($routesPath)) {
+        if ($routesPath === '') {
             return;
+        }
+
+        if (!is_file($routesPath) || !is_readable($routesPath)) {
+            throw new \RuntimeException('Routes file is not readable: ' . $routesPath);
         }
 
         /** @var Router $router */
         $router = $this->container->get(Router::class);
         $routes = require $routesPath;
 
-        if (is_callable($routes)) {
-            $routes($router);
+        if (!is_callable($routes)) {
+            throw new \RuntimeException('Routes file must return a callable: ' . $routesPath);
         }
+
+        $routes($router);
+    }
+
+    /**
+     * Register a framework service unless the application already bound it.
+     */
+    private function setDefault(string $id, callable $factory): void
+    {
+        if ($this->container->bound($id)) {
+            return;
+        }
+
+        $this->container->set($id, $factory);
     }
 }

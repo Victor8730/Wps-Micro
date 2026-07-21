@@ -28,9 +28,9 @@ class RouteDefinition
     /**
      * Attach route-level middleware.
      *
-     * @param array|string $middleware
+     * @param array<int, Middleware|string>|Middleware|string $middleware
      */
-    public function middleware($middleware): self
+    public function middleware(array|string|Middleware $middleware): self
     {
         foreach ($this->indexes as $index) {
             foreach ((array) $middleware as $item) {

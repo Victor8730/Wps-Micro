@@ -107,6 +107,10 @@ Env::load($rootPath . '/.env');
 return Kernel::fromConfigFile($rootPath . '/config/app.php');
 ```
 
+When `router.routes_path` is configured, the file must be readable and return
+a callable. Invalid configuration fails during kernel boot instead of leaving
+the application with an empty router.
+
 The public front controller handles globals and sends the response:
 
 ```php
@@ -114,6 +118,27 @@ The public front controller handles globals and sends the response:
 $kernel = require dirname(__DIR__) . '/bootstrap/app.php';
 $kernel->handleGlobals()->send();
 ```
+
+## Container Overrides
+
+Framework services are registered as defaults. Explicit application bindings
+in a supplied container are preserved, so infrastructure can be replaced
+without changing the core:
+
+```php
+use WpsMicro\Core\Config;
+use WpsMicro\Core\Container;
+use WpsMicro\Core\Kernel;
+use WpsMicro\Core\Router;
+
+$container = new Container();
+$container->instance(Router::class, new Router());
+
+$kernel = new Kernel(new Config($config), $container);
+```
+
+Use `Container::bound()` to check for an explicit factory or instance binding.
+`Container::has()` also reports concrete classes that can be autowired.
 
 ## Routing
 
@@ -152,6 +177,10 @@ final class ControllerProduct extends Controller
     }
 }
 ```
+
+Controller actions must return a `Response` instance. Returning strings or
+using `echo` as the response body is not supported in v3. This keeps response
+status, headers, middleware, and error handling deterministic.
 
 Controller helpers return HTML, JSON, and redirects:
 
@@ -208,7 +237,8 @@ or changing the session.
 
 `Database` creates a configured PDO connection. `Model` provides that connection
 to application persistence classes, while business workflows remain in
-application services.
+application services. The built-in migrator is tested with SQLite and MariaDB;
+the MySQL-compatible migration path is also suitable for MySQL.
 
 Migration files return a `Migration` instance and implement both directions:
 
@@ -256,3 +286,18 @@ Validate package metadata:
 ```bash
 composer validate --strict --no-check-publish
 ```
+
+The regular local suite skips the MariaDB integration test when its test
+environment variables are not configured. GitHub Actions runs that test against
+a real MariaDB service.
+
+## Versioning And Security
+
+WPS Micro follows [Semantic Versioning](https://semver.org/). Breaking public
+API changes are reserved for major releases, backward-compatible features for
+minor releases, and fixes for patch releases.
+
+See [CHANGELOG.md](CHANGELOG.md) for release history,
+[UPGRADING.md](UPGRADING.md) for migration instructions, and
+[SECURITY.md](SECURITY.md) for supported versions and private vulnerability
+reporting.
