@@ -38,7 +38,7 @@
   },
   "archive": {
     "exclude": [
-      "/.DS_Store",
+      "**/.DS_Store",
       "/.github/",
       "/.idea/",
       "/.phpunit.cache/",
