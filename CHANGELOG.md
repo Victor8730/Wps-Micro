@@ -4,7 +4,7 @@ All notable changes to WPS Micro are documented in this file.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
-## [3.0.0] - Unreleased
+## [3.0.0] - 2026-07-22
 
 ### Added
 
