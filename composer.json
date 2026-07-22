@@ -1,6 +1,7 @@
 {
   "name": "webpagestudio/wps-micro",
   "description": "Lightweight PHP framework for building web applications",
+  "type": "library",
   "license": "MIT",
   "authors": [
     {
@@ -9,7 +10,6 @@
     }
   ],
   "config": {
-    "vendor-dir": "application/vendor",
     "sort-packages": true
   },
   "require": {
@@ -18,24 +18,16 @@
     "ext-json": "*",
     "ext-pdo": "*",
     "ext-mbstring": "*",
-    "ext-dom": "*",
-    "ext-simplexml": "*",
-    "ext-libxml": "*",
     "psr/container": "^2.0"
   },
   "autoload": {
     "psr-4": {
-      "Core\\": "application/Core",
-      "Exceptions\\": "application/Exceptions",
-      "Controllers\\": "application/Controllers",
-      "Middleware\\": "application/Middleware",
-      "Models\\": "application/Models",
-      "Services\\": "application/Services"
+      "WpsMicro\\Core\\": "src/"
     }
   },
   "autoload-dev": {
     "psr-4": {
-      "Tests\\": "application/Tests"
+      "WpsMicro\\Tests\\": "tests/"
     }
   },
   "require-dev": {
@@ -43,5 +35,17 @@
   },
   "scripts": {
     "test": "phpunit --configuration phpunit.xml.dist"
+  },
+  "archive": {
+    "exclude": [
+      "**/.DS_Store",
+      "/.github/",
+      "/.idea/",
+      "/.phpunit.cache/",
+      "/composer.lock",
+      "/phpunit.xml.dist",
+      "/tests/",
+      "/vendor/"
+    ]
   }
 }

@@ -8,29 +8,6 @@ permissions:
   contents: read
 
 jobs:
-  assets:
-    name: Frontend assets
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Audit dependencies
-        run: npm audit --audit-level=high
-
-      - name: Build assets
-        run: npm run build
-
   tests:
     name: PHP ${{ matrix.php }}
     runs-on: ubuntu-latest
@@ -60,7 +37,49 @@ jobs:
         run: composer audit
 
       - name: Lint PHP files
-        run: find application public -path application/vendor -prune -o -name '*.php' -print0 | xargs -0 -n1 php -l
+        run: find src tests -name '*.php' -print0 | xargs -0 -n1 php -l
 
       - name: Run tests
         run: composer test
+
+  mariadb:
+    name: MariaDB migrations
+    runs-on: ubuntu-latest
+    services:
+      mariadb:
+        image: mariadb:11.4
+        env:
+          MARIADB_ROOT_PASSWORD: root
+          MARIADB_DATABASE: wps_micro_test
+          MARIADB_USER: wps_micro
+          MARIADB_PASSWORD: secret
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    env:
+      WPS_TEST_MARIADB_HOST: 127.0.0.1
+      WPS_TEST_MARIADB_PORT: 3306
+      WPS_TEST_MARIADB_DATABASE: wps_micro_test
+      WPS_TEST_MARIADB_USERNAME: wps_micro
+      WPS_TEST_MARIADB_PASSWORD: secret
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: json, mbstring, pdo, pdo_mysql, pdo_sqlite
+          coverage: none
+
+      - name: Install dependencies
+        run: composer update --prefer-dist --no-interaction --no-progress
+
+      - name: Run MariaDB migration tests
+        run: vendor/bin/phpunit --configuration phpunit.xml.dist --filter testItMigratesAndRollsBackWithMariaDb

@@ -1,20 +1,13 @@
 # phpstorm project files
 .idea
-# application vendor and cache file
-application/vendor/*
-application/Cache/*
+# Composer dependencies
+/vendor/
 
-# frontend dependencies and generated assets
-node_modules/
-public/build/
+# PHPUnit cache
+/.phpunit.cache/
 
-# local environment files
-.env
-.env.*
-!.env.production.example
-
-# application log files
-*.log
+# Local environment overrides
+/.env
 
 # macOS metadata files
 .DS_Store
