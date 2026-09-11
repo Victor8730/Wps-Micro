@@ -562,11 +562,15 @@ class Router
      */
     private function currentGroup(): array
     {
-        return $this->groups[array_key_last($this->groups)] ?? [
-            'prefix' => '/',
-            'name' => '',
-            'middleware' => [],
-        ];
+        if ($this->groups === []) {
+            return [
+                'prefix' => '/',
+                'name' => '',
+                'middleware' => [],
+            ];
+        }
+
+        return $this->groups[array_key_last($this->groups)];
     }
 
     /**
