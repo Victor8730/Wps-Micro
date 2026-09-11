@@ -33,16 +33,22 @@ class Dispatcher
 
     /**
      * Middleware executed before route matching.
+     *
+     * @var list<Middleware|string>
      */
     private array $globalMiddleware;
 
     /**
      * Middleware executed after a route is matched.
+     *
+     * @var list<Middleware|string>
      */
     private array $routeMiddleware;
 
     /**
      * Application action used to render browser 404 responses.
+     *
+     * @var array<array-key, mixed>
      */
     private array $notFoundAction;
 
@@ -53,6 +59,10 @@ class Dispatcher
 
     /**
      * Create a dispatcher.
+     *
+     * @param array<array-key, mixed> $globalMiddleware
+     * @param array<array-key, mixed> $routeMiddleware
+     * @param array<array-key, mixed> $notFoundAction
      */
     public function __construct(
         Router $router,
@@ -62,14 +72,14 @@ class Dispatcher
         array $globalMiddleware = [],
         array $routeMiddleware = [],
         array $notFoundAction = [],
-        string $appUrl = ''
+        string $appUrl = '',
     ) {
         $this->router = $router;
         $this->container = $container;
         $this->pipeline = $pipeline;
         $this->errorHandler = $errorHandler;
-        $this->globalMiddleware = $globalMiddleware;
-        $this->routeMiddleware = $routeMiddleware;
+        $this->globalMiddleware = $this->normalizeMiddleware($globalMiddleware);
+        $this->routeMiddleware = $this->normalizeMiddleware($routeMiddleware);
         $this->notFoundAction = $notFoundAction;
         $this->appUrl = rtrim($appUrl, '/');
     }
@@ -87,7 +97,7 @@ class Dispatcher
                     return $this->handleExceptions($request, function () use ($request): Response {
                         return $this->dispatchRoute($request);
                     });
-                }
+                },
             );
         });
 
@@ -110,9 +120,9 @@ class Dispatcher
                 return $this->executeAction(
                     $controller,
                     $match->getActionMethod(),
-                    $match->getParameters()
+                    $match->getParameters(),
                 );
-            }
+            },
         );
     }
 
@@ -148,12 +158,14 @@ class Dispatcher
 
     /**
      * Build a text or JSON client error response.
+     *
+     * @param array<string, list<string>|string> $headers
      */
     private function clientError(
         Request $request,
         string $message,
         int $statusCode,
-        array $headers = []
+        array $headers = [],
     ): Response {
         if ($request->expectsJson()) {
             return new JsonResponse(['message' => $message], $statusCode, $headers);
@@ -166,6 +178,8 @@ class Dispatcher
 
     /**
      * Execute a controller action and normalize the result to a response.
+     *
+     * @param array<string, string> $parameters
      */
     private function executeAction(object $controller, string $actionMethod, array $parameters = []): Response
     {
@@ -176,7 +190,7 @@ class Dispatcher
                 'Controller action %s::%s() must return %s.',
                 $controller::class,
                 $actionMethod,
-                Response::class
+                Response::class,
             ));
         }
 
@@ -185,6 +199,8 @@ class Dispatcher
 
     /**
      * Call the action with named route parameters.
+     *
+     * @param array<string, string> $parameters
      */
     private function callAction(object $controller, string $actionMethod, array $parameters): mixed
     {
@@ -255,6 +271,8 @@ class Dispatcher
 
     /**
      * Remove tokens and password fields before flashing request input.
+     *
+     * @return array<array-key, mixed>
      */
     private function flashableInput(Request $request): array
     {
@@ -328,6 +346,8 @@ class Dispatcher
 
     /**
      * Check whether parsed URL parts use the configured application origin.
+     *
+     * @param array<string, int|string> $parts
      */
     private function hasSafeOrigin(array $parts): bool
     {
@@ -352,6 +372,8 @@ class Dispatcher
 
     /**
      * Return an explicit or scheme-default URL port.
+     *
+     * @param array<string, int|string> $parts
      */
     private function urlPort(array $parts): ?int
     {
@@ -366,5 +388,27 @@ class Dispatcher
         }
 
         return $scheme === 'http' ? 80 : null;
+    }
+
+    /**
+     * Normalize and validate configured middleware.
+     *
+     * @param array<array-key, mixed> $middleware
+     *
+     * @return list<Middleware|string>
+     */
+    private function normalizeMiddleware(array $middleware): array
+    {
+        $normalized = [];
+
+        foreach ($middleware as $item) {
+            if (!is_string($item) && !$item instanceof Middleware) {
+                throw new \InvalidArgumentException('Middleware must be a class name or Middleware instance.');
+            }
+
+            $normalized[] = $item;
+        }
+
+        return $normalized;
     }
 }

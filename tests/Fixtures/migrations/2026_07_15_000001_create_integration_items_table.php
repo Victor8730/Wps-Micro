@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 use WpsMicro\Core\Migration;
 
-return new class extends Migration {
+return new class () extends Migration {
     public function up(\PDO $db): void
     {
         $primaryKey = $db->getAttribute(\PDO::ATTR_DRIVER_NAME) === 'sqlite'
@@ -15,7 +15,7 @@ return new class extends Migration {
             'CREATE TABLE integration_items (
                 id ' . $primaryKey . ',
                 name VARCHAR(255) NOT NULL
-            )'
+            )',
         );
     }
 

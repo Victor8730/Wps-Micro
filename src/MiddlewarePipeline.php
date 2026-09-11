@@ -21,6 +21,9 @@ class MiddlewarePipeline
 
     /**
      * Run the request through middleware and into the destination callback.
+     *
+     * @param list<Middleware|string> $middleware
+     * @param callable(Request): Response $destination
      */
     public function handle(Request $request, array $middleware, callable $destination): Response
     {
@@ -39,7 +42,7 @@ class MiddlewarePipeline
                     return $this->resolve($middleware)->handle($request, $next);
                 };
             },
-            $destination
+            $destination,
         );
 
         return $next($request);

@@ -8,6 +8,8 @@ class RedirectResponse extends Response
 {
     /**
      * Create a redirect response.
+     *
+     * @param array<string, array<array-key, mixed>|string> $headers
      */
     public function __construct(string $url, int $statusCode = 302, array $headers = [])
     {

@@ -8,11 +8,15 @@ class Config
 {
     /**
      * Application configuration values.
+     *
+     * @var array<string, mixed>
      */
     private array $items;
 
     /**
      * Create an immutable configuration repository.
+     *
+     * @param array<string, mixed> $items
      */
     public function __construct(array $items)
     {

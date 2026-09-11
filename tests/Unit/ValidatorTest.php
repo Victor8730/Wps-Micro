@@ -113,7 +113,7 @@ final class ValidatorTest extends TestCase
         } catch (ValidationException $exception) {
             self::assertSame(
                 ['name' => ['name must be a string.']],
-                $exception->errors()
+                $exception->errors(),
             );
 
             return;
@@ -145,5 +145,97 @@ final class ValidatorTest extends TestCase
         $validator->validate([], [
             'email' => 'requried|email',
         ]);
+    }
+
+    public function testMinAndMaxCompareNumericValuesForNumericFields(): void
+    {
+        $validator = new Validator();
+
+        $validated = $validator->validate([
+            'quantity' => '10',
+            'price' => '19.95',
+        ], [
+            'quantity' => 'required|integer|min:1|max:100',
+            'price' => 'required|numeric|min:0.01|max:999.99',
+        ]);
+
+        self::assertSame(['quantity' => '10', 'price' => '19.95'], $validated);
+
+        try {
+            $validator->validate(['quantity' => '101'], [
+                'quantity' => 'integer|min:1|max:100',
+            ]);
+        } catch (ValidationException $exception) {
+            self::assertSame([
+                'quantity' => ['quantity may not be greater than 100.'],
+            ], $exception->errors());
+
+            return;
+        }
+
+        self::fail('A numeric value above the maximum was accepted.');
+    }
+
+    public function testNumericMinimumRejectsValuesBelowTheLimit(): void
+    {
+        $validator = new Validator();
+
+        try {
+            $validator->validate(['price' => '0'], [
+                'price' => 'required|numeric|min:0.01',
+            ]);
+        } catch (ValidationException $exception) {
+            self::assertSame([
+                'price' => ['price must be at least 0.01.'],
+            ], $exception->errors());
+
+            return;
+        }
+
+        self::fail('A numeric value below the minimum was accepted.');
+    }
+
+    public function testItSupportsRegisteredAndInlineCustomRules(): void
+    {
+        $validator = new Validator();
+        $validator->addRule(
+            'divisible_by',
+            static function (mixed $value, string $field, array $data, ?string $parameter): bool|string {
+                if ($parameter === null || (int) $parameter === 0) {
+                    return 'The divisor is invalid.';
+                }
+
+                return (int) $value % (int) $parameter === 0
+                    ?: $field.' must be divisible by '.$parameter.'.';
+            },
+        );
+
+        $validated = $validator->validate([
+            'quantity' => '12',
+            'sku' => 'WPS-31',
+        ], [
+            'quantity' => 'required|integer|divisible_by:3',
+            'sku' => [
+                'required',
+                static fn (mixed $value): bool|string => str_starts_with((string) $value, 'WPS-')
+                    ?: 'sku must start with WPS-.',
+            ],
+        ]);
+
+        self::assertSame(['quantity' => '12', 'sku' => 'WPS-31'], $validated);
+
+        try {
+            $validator->validate(['quantity' => '10'], [
+                'quantity' => 'divisible_by:3',
+            ]);
+        } catch (ValidationException $exception) {
+            self::assertSame([
+                'quantity' => ['quantity must be divisible by 3.'],
+            ], $exception->errors());
+
+            return;
+        }
+
+        self::fail('A value rejected by a custom rule was accepted.');
     }
 }

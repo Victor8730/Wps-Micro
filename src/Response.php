@@ -18,11 +18,15 @@ class Response
 
     /**
      * HTTP response headers.
+     *
+     * @var array<string, list<string>|string>
      */
     private array $headers;
 
     /**
      * Create an HTTP response.
+     *
+     * @param array<string, array<array-key, mixed>|string> $headers
      */
     public function __construct(string $content = '', int $statusCode = 200, array $headers = [])
     {
@@ -77,6 +81,8 @@ class Response
 
     /**
      * Return all response headers.
+     *
+     * @return array<string, list<string>|string>
      */
     public function getHeaders(): array
     {
@@ -93,6 +99,8 @@ class Response
 
     /**
      * Return a response header value.
+     *
+     * @return list<string>|string|null
      */
     public function getHeader(string $name): array|string|null
     {
@@ -104,6 +112,7 @@ class Response
     /**
      * Set or replace a response header.
      *
+     * @param array<array-key, mixed>|string $value
      */
     public function setHeader(string $name, array|string $value): self
     {
@@ -182,6 +191,9 @@ class Response
     /**
      * Normalize one or more HTTP header values.
      *
+     * @param array<array-key, mixed>|string $value
+     *
+     * @return list<string>|string
      */
     private function normalizeHeaderValue(array|string $value): array|string
     {

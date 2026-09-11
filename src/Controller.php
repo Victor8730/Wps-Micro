@@ -29,7 +29,7 @@ class Controller
     public function __construct(
         Request $request,
         ViewRenderer $view,
-        Validator $validator
+        Validator $validator,
     ) {
         $this->request = $request;
         $this->view = $view;
@@ -38,6 +38,8 @@ class Controller
 
     /**
      * Render a Twig template response.
+     *
+     * @param array<string, mixed> $context
      */
     protected function render(string $template, array $context = [], int $statusCode = 200): Response
     {
@@ -46,6 +48,8 @@ class Controller
 
     /**
      * Build a JSON response.
+     *
+     * @param array<array-key, mixed> $data
      */
     protected function json(array $data = [], int $statusCode = 200): JsonResponse
     {
@@ -54,6 +58,10 @@ class Controller
 
     /**
      * Validate current request input.
+     *
+     * @param array<string, mixed> $rules
+     *
+     * @return array<string, mixed>
      *
      * @throws ValidationException
      */

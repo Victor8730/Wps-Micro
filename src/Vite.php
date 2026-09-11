@@ -8,6 +8,9 @@ class Vite
 {
     private Config $config;
 
+    /**
+     * @var null|array<string, array<string, mixed>>
+     */
     private ?array $manifest = null;
 
     /**
@@ -72,6 +75,8 @@ class Vite
 
     /**
      * Load and cache the production manifest.
+     *
+     * @return array<string, array<string, mixed>>
      */
     private function manifest(): array
     {
@@ -97,11 +102,27 @@ class Vite
             throw new \RuntimeException('Vite manifest must contain a JSON object.');
         }
 
-        return $this->manifest = $manifest;
+        $chunks = [];
+
+        foreach ($manifest as $name => $chunk) {
+            if (!is_string($name) || !is_array($chunk)) {
+                throw new \RuntimeException('Vite manifest entries must contain chunk objects.');
+            }
+
+            $chunks[$name] = $chunk;
+        }
+
+        return $this->manifest = $chunks;
     }
 
     /**
      * Resolve imported chunks recursively without duplicates.
+     *
+     * @param array<string, array<string, mixed>> $manifest
+     * @param array<string, mixed>                $chunk
+     * @param array<string, true>                 $seen
+     *
+     * @return list<array<string, mixed>>
      */
     private function imports(array $manifest, array $chunk, array &$seen = []): array
     {
@@ -110,7 +131,7 @@ class Vite
         foreach ((array) ($chunk['imports'] ?? []) as $name) {
             $name = (string) $name;
 
-            if (isset($seen[$name]) || !isset($manifest[$name]) || !is_array($manifest[$name])) {
+            if (isset($seen[$name]) || !isset($manifest[$name])) {
                 continue;
             }
 

@@ -4,30 +4,38 @@ declare(strict_types=1);
 
 namespace WpsMicro\Core;
 
-use WpsMicro\Core\Exceptions\ContainerException;
-use WpsMicro\Core\Exceptions\ContainerNotFoundException;
 use Psr\Container\ContainerExceptionInterface;
 use Psr\Container\ContainerInterface;
+use WpsMicro\Core\Exceptions\ContainerException;
+use WpsMicro\Core\Exceptions\ContainerNotFoundException;
 
 class Container implements ContainerInterface
 {
     /**
      * Service factories indexed by identifier.
+     *
+     * @var array<string, callable(self): mixed>
      */
     private array $factories = [];
 
     /**
      * Resolved shared service instances.
+     *
+     * @var array<string, object>
      */
     private array $instances = [];
 
     /**
      * Cached class reflection metadata.
+     *
+     * @var array<class-string, \ReflectionClass<object>>
      */
     private array $reflections = [];
 
     /**
      * Service identifiers currently being resolved.
+     *
+     * @var list<string>
      */
     private array $resolving = [];
 
@@ -99,7 +107,7 @@ class Container implements ContainerInterface
             throw new ContainerException(
                 'Unable to resolve service ' . $id . ': ' . $exception->getMessage(),
                 0,
-                $exception
+                $exception,
             );
         } finally {
             $this->endResolving();
@@ -116,6 +124,8 @@ class Container implements ContainerInterface
 
     /**
      * Create an object and resolve constructor dependencies.
+     *
+     * @param array<string, mixed> $parameters
      */
     public function make(string $className, array $parameters = []): object
     {
@@ -152,11 +162,13 @@ class Container implements ContainerInterface
 
     /**
      * Resolve one constructor parameter.
+     *
+     * @param array<string, mixed> $parameters
      */
     private function resolveParameter(
         string $className,
         \ReflectionParameter $parameter,
-        array $parameters
+        array $parameters,
     ): mixed {
         $name = $parameter->getName();
 
@@ -187,12 +199,14 @@ class Container implements ContainerInterface
 
     /**
      * Resolve a named constructor parameter type.
+     *
+     * @param array<string, mixed> $parameters
      */
     private function resolveNamedType(
         string $className,
         \ReflectionParameter $parameter,
         \ReflectionNamedType $type,
-        array $parameters
+        array $parameters,
     ): mixed {
         $typeName = $type->getName();
 
@@ -221,16 +235,26 @@ class Container implements ContainerInterface
 
     /**
      * Resolve a union type when one candidate has an explicit binding.
+     *
+     * @param array<string, mixed> $parameters
      */
     private function resolveUnionType(
         string $className,
         \ReflectionParameter $parameter,
         \ReflectionUnionType $type,
-        array $parameters
+        array $parameters,
     ): mixed {
         $candidates = [];
 
         foreach ($type->getTypes() as $candidate) {
+            if ($candidate instanceof \ReflectionIntersectionType) {
+                foreach ($this->matchingIntersectionInstances($candidate) as $instance) {
+                    $candidates['object:'.spl_object_id($instance)] = $instance;
+                }
+
+                continue;
+            }
+
             if ($candidate->isBuiltin()) {
                 continue;
             }
@@ -242,14 +266,14 @@ class Container implements ContainerInterface
             }
 
             if (isset($this->instances[$candidateName]) || isset($this->factories[$candidateName])) {
-                $candidates[] = $candidateName;
+                $candidates['service:'.$candidateName] = $candidateName;
             }
         }
 
-        $candidates = array_values(array_unique($candidates));
-
         if (count($candidates) === 1) {
-            return $this->get($candidates[0]);
+            $candidate = reset($candidates);
+
+            return is_object($candidate) ? $candidate : $this->get($candidate);
         }
 
         if ($parameter->isDefaultValueAvailable()) {
@@ -260,8 +284,8 @@ class Container implements ContainerInterface
             sprintf(
                 'Unable to resolve union parameter %s for %s without one explicit binding.',
                 $parameter->getName(),
-                $className
-            )
+                $className,
+            ),
         );
     }
 
@@ -271,26 +295,9 @@ class Container implements ContainerInterface
     private function resolveIntersectionType(
         string $className,
         \ReflectionParameter $parameter,
-        \ReflectionIntersectionType $type
+        \ReflectionIntersectionType $type,
     ): object {
-        $matches = [];
-
-        foreach ($this->instances as $instance) {
-            $valid = true;
-
-            foreach ($type->getTypes() as $candidate) {
-                $candidateName = $candidate->getName();
-
-                if (!($instance instanceof $candidateName)) {
-                    $valid = false;
-                    break;
-                }
-            }
-
-            if ($valid) {
-                $matches[] = $instance;
-            }
-        }
+        $matches = $this->matchingIntersectionInstances($type);
 
         if (count($matches) === 1) {
             return $matches[0];
@@ -300,13 +307,45 @@ class Container implements ContainerInterface
             sprintf(
                 'Unable to resolve intersection parameter %s for %s.',
                 $parameter->getName(),
-                $className
-            )
+                $className,
+            ),
         );
     }
 
     /**
+     * Find registered instances satisfying every type in an intersection.
+     *
+     * @return list<object>
+     */
+    private function matchingIntersectionInstances(\ReflectionIntersectionType $type): array
+    {
+        $matches = [];
+
+        foreach ($this->instances as $instance) {
+            foreach ($type->getTypes() as $candidate) {
+                if (!$candidate instanceof \ReflectionNamedType) {
+                    continue 2;
+                }
+
+                $candidateName = $candidate->getName();
+
+                if (!($instance instanceof $candidateName)) {
+                    continue 2;
+                }
+            }
+
+            $matches[] = $instance;
+        }
+
+        return $matches;
+    }
+
+    /**
      * Return cached reflection metadata for a class.
+     *
+     * @param class-string $className
+     *
+     * @return \ReflectionClass<object>
      */
     private function reflection(string $className): \ReflectionClass
     {
@@ -340,14 +379,14 @@ class Container implements ContainerInterface
      */
     private function unresolvedParameter(
         string $className,
-        \ReflectionParameter $parameter
+        \ReflectionParameter $parameter,
     ): ContainerException {
         return new ContainerException(
             sprintf(
                 'Unable to resolve constructor parameter %s for %s.',
                 $parameter->getName(),
-                $className
-            )
+                $className,
+            ),
         );
     }
 }

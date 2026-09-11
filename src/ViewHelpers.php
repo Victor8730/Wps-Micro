@@ -27,24 +27,39 @@ class ViewHelpers
     private Vite $vite;
 
     /**
+     * Named route URL generator.
+     */
+    private ?Router $router;
+
+    /**
      * Cached validation errors for the current render.
+     *
+     * @var null|array<string, list<string>>
      */
     private ?array $errors = null;
 
     /**
      * Cached old input for the current render.
+     *
+     * @var null|array<array-key, mixed>
      */
     private ?array $oldInput = null;
 
     /**
      * Create view helpers.
      */
-    public function __construct(Config $config, Csrf $csrf, Session $session, Vite $vite)
-    {
+    public function __construct(
+        Config $config,
+        Csrf $csrf,
+        Session $session,
+        Vite $vite,
+        ?Router $router = null,
+    ) {
         $this->config = $config;
         $this->csrf = $csrf;
         $this->session = $session;
         $this->vite = $vite;
+        $this->router = $router;
     }
 
     /**
@@ -54,6 +69,7 @@ class ViewHelpers
     {
         $twig->addFunction(new \Twig\TwigFunction('asset', [$this, 'asset']));
         $twig->addFunction(new \Twig\TwigFunction('url', [$this, 'url']));
+        $twig->addFunction(new \Twig\TwigFunction('route', [$this, 'route']));
         $twig->addFunction(new \Twig\TwigFunction('vite', [$this->vite, 'tags'], ['is_safe' => ['html']]));
         $twig->addFunction(new \Twig\TwigFunction('csrf_token', [$this->csrf, 'token']));
         $twig->addFunction(new \Twig\TwigFunction('csrf_field', [$this->csrf, 'field'], ['is_safe' => ['html']]));
@@ -80,6 +96,21 @@ class ViewHelpers
     }
 
     /**
+     * Return an application URL for a named route.
+     *
+     * @param array<string, mixed> $parameters
+     * @param array<string, mixed> $query
+     */
+    public function route(string $name, array $parameters = [], array $query = []): string
+    {
+        if ($this->router === null) {
+            throw new \RuntimeException('Named route helper requires a Router instance.');
+        }
+
+        return $this->url($this->router->url($name, $parameters, $query));
+    }
+
+    /**
      * Return old input from the previous request.
      *
      * @param mixed $default
@@ -90,7 +121,7 @@ class ViewHelpers
     {
         $old = $this->oldInput();
 
-        return is_array($old) && array_key_exists($key, $old) ? $old[$key] : $default;
+        return array_key_exists($key, $old) ? $old[$key] : $default;
     }
 
     /**
@@ -107,12 +138,24 @@ class ViewHelpers
 
     /**
      * Return validation errors.
+     *
+     * @return array<string, list<string>>
      */
     public function errors(): array
     {
         if ($this->errors === null) {
-            $errors = $this->session->pullFlash('errors', []);
-            $this->errors = is_array($errors) ? $errors : [];
+            $storedErrors = $this->session->pullFlash('errors', []);
+            $this->errors = [];
+
+            if (is_array($storedErrors)) {
+                foreach ($storedErrors as $field => $messages) {
+                    if (!is_string($field) || !is_array($messages)) {
+                        continue;
+                    }
+
+                    $this->errors[$field] = array_values(array_filter($messages, 'is_string'));
+                }
+            }
         }
 
         return $this->errors;
@@ -130,6 +173,8 @@ class ViewHelpers
 
     /**
      * Return cached old input.
+     *
+     * @return array<array-key, mixed>
      */
     private function oldInput(): array
     {

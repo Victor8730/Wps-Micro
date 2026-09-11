@@ -47,7 +47,7 @@ final class DispatcherTest extends TestCase
             $container,
             new MiddlewarePipeline($container),
             new ErrorHandler($config),
-            [ResponseHeaderMiddleware::class]
+            [ResponseHeaderMiddleware::class],
         );
 
         $response = $dispatcher->dispatch(new Request('GET', '/failure'));
@@ -69,7 +69,7 @@ final class DispatcherTest extends TestCase
             $router,
             $container,
             new MiddlewarePipeline($container),
-            new ErrorHandler($config)
+            new ErrorHandler($config),
         );
 
         $response = $dispatcher->dispatch(new Request(
@@ -78,7 +78,7 @@ final class DispatcherTest extends TestCase
             [],
             [],
             [],
-            ['Accept' => 'application/json']
+            ['Accept' => 'application/json'],
         ));
         $payload = json_decode($response->getContent(), true, 512, JSON_THROW_ON_ERROR);
 
@@ -102,7 +102,7 @@ final class DispatcherTest extends TestCase
             $router,
             $container,
             new MiddlewarePipeline($container),
-            new ErrorHandler($config)
+            new ErrorHandler($config),
         );
 
         $response = $dispatcher->dispatch(new Request(
@@ -116,7 +116,7 @@ final class DispatcherTest extends TestCase
                 '_token' => 'csrf-token',
             ],
             [],
-            ['Accept' => 'application/json']
+            ['Accept' => 'application/json'],
         ));
 
         self::assertSame(422, $response->getStatusCode());
@@ -139,7 +139,7 @@ final class DispatcherTest extends TestCase
             $container,
             new MiddlewarePipeline($container),
             new ErrorHandler($config),
-            appUrl: 'https://example.test'
+            appUrl: 'https://example.test',
         );
 
         $sameOrigin = $dispatcher->dispatch(new Request(
@@ -148,7 +148,7 @@ final class DispatcherTest extends TestCase
             [],
             ['email' => 'victor@example.com', 'password' => 'secret'],
             [],
-            ['Referer' => 'https://example.test/register?step=2']
+            ['Referer' => 'https://example.test/register?step=2'],
         ));
         $externalOrigin = $dispatcher->dispatch(new Request(
             'POST',
@@ -156,7 +156,7 @@ final class DispatcherTest extends TestCase
             [],
             ['email' => 'victor@example.com'],
             [],
-            ['Referer' => 'https://attacker.test/phishing']
+            ['Referer' => 'https://attacker.test/phishing'],
         ));
 
         self::assertSame('/register?step=2', $sameOrigin->getHeaders()['Location'] ?? null);
@@ -179,7 +179,7 @@ final class DispatcherTest extends TestCase
             new ErrorHandler($config),
             [],
             [],
-            [NotFoundController::class, 'show']
+            [NotFoundController::class, 'show'],
         );
 
         $response = $dispatcher->dispatch(new Request('GET', '/missing'));
@@ -203,7 +203,7 @@ final class DispatcherTest extends TestCase
             new ErrorHandler($config),
             [],
             [],
-            [BrokenNotFoundController::class, 'show']
+            [BrokenNotFoundController::class, 'show'],
         );
 
         $response = $dispatcher->dispatch(new Request('GET', '/missing'));
@@ -225,7 +225,7 @@ final class DispatcherTest extends TestCase
             $router,
             $container,
             new MiddlewarePipeline($container),
-            new ErrorHandler($config)
+            new ErrorHandler($config),
         );
 
         $response = $dispatcher->dispatch(new Request('GET', '/legacy'));
@@ -247,7 +247,7 @@ final class DispatcherTest extends TestCase
             $router,
             $container,
             new MiddlewarePipeline($container),
-            new ErrorHandler($config)
+            new ErrorHandler($config),
         );
 
         $response = $dispatcher->dispatch(new Request('HEAD', '/status'));

@@ -44,7 +44,7 @@ final class GeneratorCommandsTest extends TestCase
         self::assertCount(1, $migrationFiles);
         self::assertStringContainsString(
             'use WpsMicro\\Core\\Migration;',
-            (string) file_get_contents($migrationFiles[0])
+            (string) file_get_contents($migrationFiles[0]),
         );
     }
 
@@ -67,7 +67,7 @@ final class GeneratorCommandsTest extends TestCase
 
         $iterator = new \RecursiveIteratorIterator(
             new \RecursiveDirectoryIterator($path, \FilesystemIterator::SKIP_DOTS),
-            \RecursiveIteratorIterator::CHILD_FIRST
+            \RecursiveIteratorIterator::CHILD_FIRST,
         );
 
         foreach ($iterator as $item) {

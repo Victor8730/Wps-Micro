@@ -26,6 +26,8 @@ class MakeMigrationCommand extends GeneratorCommand implements Command
 
     /**
      * Execute the command.
+     *
+     * @param list<string> $arguments
      */
     public function handle(array $arguments): int
     {

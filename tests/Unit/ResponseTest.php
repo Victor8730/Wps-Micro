@@ -23,7 +23,7 @@ final class ResponseTest extends TestCase
         self::assertSame('application/json', $response->getHeader('Content-Type'));
         self::assertSame(
             ['theme=dark', 'locale=en', 'cart=active'],
-            $response->getHeader('Set-Cookie')
+            $response->getHeader('Set-Cookie'),
         );
         self::assertCount(2, $response->getHeaders());
     }

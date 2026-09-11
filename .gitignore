@@ -6,6 +6,11 @@
 # PHPUnit cache
 /.phpunit.cache/
 
+# Quality tool caches and reports
+/.php-cs-fixer.cache
+/.phpstan.cache/
+/build/
+
 # Local environment overrides
 /.env
 

@@ -25,7 +25,7 @@ final class RequestTest extends TestCase
             ],
             [],
             [],
-            $content
+            $content,
         );
 
         self::assertSame('/users', $request->getPath());
@@ -47,7 +47,7 @@ final class RequestTest extends TestCase
             ['Content-Type' => 'application/x-www-form-urlencoded'],
             [],
             [],
-            '_method=PATCH&name=Updated'
+            '_method=PATCH&name=Updated',
         );
 
         self::assertSame('PATCH', $request->getMethod());
@@ -76,7 +76,7 @@ final class RequestTest extends TestCase
                 ['Content-Type' => 'application/json', 'Accept' => 'application/json'],
                 [],
                 [],
-                '{invalid'
+                '{invalid',
             );
         } catch (BadRequestException $exception) {
             self::assertSame('The JSON request body is invalid.', $exception->getMessage());

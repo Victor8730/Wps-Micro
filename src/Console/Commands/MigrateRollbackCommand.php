@@ -41,6 +41,8 @@ class MigrateRollbackCommand implements Command
 
     /**
      * Execute the command.
+     *
+     * @param list<string> $arguments
      */
     public function handle(array $arguments): int
     {
@@ -63,6 +65,8 @@ class MigrateRollbackCommand implements Command
 
     /**
      * Resolve the migration step count from CLI arguments.
+     *
+     * @param list<string> $arguments
      */
     private function steps(array $arguments): int
     {

@@ -8,6 +8,9 @@ class JsonResponse extends Response
 {
     /**
      * Create a JSON response.
+     *
+     * @param array<array-key, mixed>                         $data
+     * @param array<string, array<array-key, mixed>|string> $headers
      */
     public function __construct(array $data = [], int $statusCode = 200, array $headers = [])
     {

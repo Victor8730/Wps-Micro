@@ -4,6 +4,25 @@ All notable changes to WPS Micro are documented in this file.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- Compiled static and dynamic route indexes for faster request matching.
+- Named routes with PHP and Twig URL generation.
+- Nested route groups with shared prefixes, name prefixes, and middleware.
+- Custom route constraints plus numeric and UUID constraint helpers.
+- `route:list` console command for inspecting application routes.
+- Reusable and inline custom validation rules.
+- Numeric `min` and `max` validation for integer and numeric fields.
+- PHPStan level 8, PHP CS Fixer, and an enforced Clover coverage threshold.
+
+### Changed
+
+- CI now verifies static analysis, code style, and test coverage on PHP 8.3.
+- Container reflection handles union types containing intersection candidates.
+- Framework array contracts are documented for static analysis.
+
 ## [3.0.0] - 2026-07-22
 
 ### Added

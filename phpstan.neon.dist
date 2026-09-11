@@ -1,0 +1,9 @@
+parameters:
+    level: 8
+    paths:
+        - src
+    tmpDir: .phpstan.cache
+    treatPhpDocTypesAsCertain: true
+    reportUnmatchedIgnoredErrors: true
+    parallel:
+        maximumNumberOfProcesses: 1

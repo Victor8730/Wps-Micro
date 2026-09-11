@@ -59,8 +59,8 @@ final class KernelTest extends TestCase
 
         self::assertSame(200, $response->getStatusCode());
         self::assertSame(
-            'Hello Victor via GET at https://example.test/status',
-            trim($response->getContent())
+            'Hello Victor via GET at https://example.test/json',
+            trim($response->getContent()),
         );
         self::assertFalse($session->isStarted());
     }
@@ -99,7 +99,7 @@ final class KernelTest extends TestCase
             [],
             [],
             [],
-            ['Accept' => 'application/json']
+            ['Accept' => 'application/json'],
         ));
 
         self::assertSame(200, $response->getStatusCode());
@@ -162,7 +162,7 @@ final class KernelTest extends TestCase
 
         $iterator = new \RecursiveIteratorIterator(
             new \RecursiveDirectoryIterator($path, \FilesystemIterator::SKIP_DOTS),
-            \RecursiveIteratorIterator::CHILD_FIRST
+            \RecursiveIteratorIterator::CHILD_FIRST,
         );
 
         foreach ($iterator as $item) {

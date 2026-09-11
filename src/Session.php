@@ -10,6 +10,8 @@ class Session
 
     /**
      * Session and cookie options.
+     *
+     * @var array<string, mixed>
      */
     private array $options;
 
@@ -20,6 +22,8 @@ class Session
 
     /**
      * Create a lazy PHP session store.
+     *
+     * @param array<string, mixed> $options
      */
     public function __construct(array $options = [])
     {
@@ -51,7 +55,7 @@ class Session
 
         if (PHP_SAPI !== 'cli' && headers_sent($file, $line)) {
             throw new \RuntimeException(
-                sprintf('Unable to start the session after output was sent in %s:%d.', $file, $line)
+                sprintf('Unable to start the session after output was sent in %s:%d.', $file, $line),
             );
         }
 
@@ -79,7 +83,13 @@ class Session
     {
         $this->start();
 
-        return session_id();
+        $id = session_id();
+
+        if ($id === false) {
+            throw new \RuntimeException('Unable to read the session identifier.');
+        }
+
+        return $id;
     }
 
     /**
@@ -155,6 +165,8 @@ class Session
 
     /**
      * Return all public session values.
+     *
+     * @return array<string, mixed>
      */
     public function all(): array
     {
@@ -198,13 +210,19 @@ class Session
 
         if (filter_var(ini_get('session.use_cookies'), FILTER_VALIDATE_BOOLEAN)) {
             $parameters = session_get_cookie_params();
-            setcookie(session_name(), '', [
+            $name = session_name();
+
+            if ($name === false) {
+                throw new \RuntimeException('Unable to read the session name.');
+            }
+
+            setcookie($name, '', [
                 'expires' => time() - 42000,
                 'path' => $parameters['path'],
                 'domain' => $parameters['domain'],
                 'secure' => $parameters['secure'],
                 'httponly' => $parameters['httponly'],
-                'samesite' => $parameters['samesite'] ?? 'Lax',
+                'samesite' => $parameters['samesite'],
             ]);
         }
 
@@ -290,6 +308,8 @@ class Session
 
     /**
      * Return a valid SameSite cookie policy.
+     *
+     * @return 'Lax'|'None'|'Strict'
      */
     private function sameSite(): string
     {

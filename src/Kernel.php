@@ -164,8 +164,10 @@ class Kernel
             $session = $container->get(Session::class);
             /** @var Vite $vite */
             $vite = $container->get(Vite::class);
+            /** @var Router $router */
+            $router = $container->get(Router::class);
 
-            return new ViewHelpers($config, $csrf, $session, $vite);
+            return new ViewHelpers($config, $csrf, $session, $vite, $router);
         });
 
         $this->setDefault(Database::class, static function (Container $container): Database {
@@ -209,7 +211,7 @@ class Kernel
                 (array) $config->get('middleware.global', []),
                 (array) $config->get('middleware.route', []),
                 (array) $config->get('errors.not_found', []),
-                (string) $config->get('app.url', '')
+                (string) $config->get('app.url', ''),
             );
         });
     }
@@ -219,7 +221,9 @@ class Kernel
      */
     private function registerRoutes(): void
     {
-        $routesPath = (string) $this->container->get(Config::class)->get('router.routes_path', '');
+        /** @var Config $config */
+        $config = $this->container->get(Config::class);
+        $routesPath = (string) $config->get('router.routes_path', '');
 
         if ($routesPath === '') {
             return;

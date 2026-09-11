@@ -8,11 +8,15 @@ class MethodNotAllowedException extends \Exception
 {
     /**
      * Methods accepted by the matched path.
+     *
+     * @var list<string>
      */
     private array $allowedMethods;
 
     /**
      * Create a 405 HTTP exception.
+     *
+     * @param list<string> $allowedMethods
      */
     public function __construct(array $allowedMethods)
     {
@@ -23,6 +27,8 @@ class MethodNotAllowedException extends \Exception
 
     /**
      * Return methods accepted by the matched path.
+     *
+     * @return list<string>
      */
     public function getAllowedMethods(): array
     {

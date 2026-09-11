@@ -149,11 +149,64 @@ use App\Controllers\ControllerProduct;
 use WpsMicro\Core\Router;
 
 return static function (Router $router): void {
-    $router->get('/products/{id}', [ControllerProduct::class, 'actionShow']);
+    $router->get('/products/{id}', [ControllerProduct::class, 'actionShow'])
+        ->whereNumber('id')
+        ->name('products.show');
     $router->post('/cart/add', [ControllerCart::class, 'actionAdd']);
     $router->delete('/cart/{id}', [ControllerCart::class, 'actionRemove']);
 };
 ```
+
+Routes are compiled when they are registered. Static paths use a direct
+method-and-path lookup, while dynamic paths reuse their compiled regular
+expression during matching. Static routes take priority over parameterized
+routes regardless of registration order.
+
+Use `where()` for custom parameter constraints, or the built-in numeric and
+UUID helpers:
+
+```php
+$router->get('/posts/{slug}', [ControllerPost::class, 'actionShow'])
+    ->where('slug', '[a-z0-9-]+')
+    ->name('posts.show');
+
+$router->get('/orders/{order}', [ControllerOrder::class, 'actionShow'])
+    ->whereUuid('order')
+    ->name('orders.show');
+```
+
+Groups combine URL prefixes, route-name prefixes, and middleware. Groups can
+be nested, and their attributes are inherited:
+
+```php
+$router->group([
+    'prefix' => '/admin',
+    'name' => 'admin.',
+    'middleware' => AuthMiddleware::class,
+], static function (Router $router): void {
+    $router->get('/products', [ControllerProduct::class, 'actionIndex'])
+        ->name('products.index');
+
+    $router->post('/products', [ControllerProduct::class, 'actionStore'])
+        ->middleware(CsrfMiddleware::class)
+        ->name('products.store');
+});
+```
+
+Generate paths from route names in PHP or complete application URLs in Twig:
+
+```php
+$path = $router->url('products.show', ['id' => 42], ['tab' => 'details']);
+// /products/42?tab=details
+```
+
+```twig
+<a href="{{ route('products.show', {id: product.id}) }}">View product</a>
+```
+
+Missing parameters, values that fail a constraint, duplicate method/path
+pairs, and duplicate names fail with an `InvalidArgumentException` during
+registration or URL generation.
 
 Explicit `HEAD` routes are supported. When no explicit route exists, a `HEAD`
 request falls back to the matching `GET` route and returns the same status and
@@ -229,6 +282,41 @@ The validator supports:
 - `email`, `url`, `integer`, and `numeric`
 - `min`, `max`, and `in`
 
+For fields using `integer` or `numeric`, `min` and `max` compare numeric
+values. For string fields, they compare UTF-8 character lengths:
+
+```php
+$validated = $this->validate([
+    'quantity' => 'required|integer|min:1|max:100',
+    'price' => 'required|numeric|min:0.01',
+    'title' => 'required|string|min:3|max:120',
+]);
+```
+
+Applications can register reusable custom rules. A rule receives the value,
+field name, complete input, and optional parameter. Return `true` or `null`
+when valid, `false` for the default message, or a custom error string:
+
+```php
+$validator->addRule(
+    'divisible_by',
+    static function (mixed $value, string $field, array $data, ?string $parameter): bool|string {
+        $divisor = (int) $parameter;
+
+        return $divisor > 0 && (int) $value % $divisor === 0
+            ?: $field . ' must be divisible by ' . $parameter . '.';
+    },
+);
+
+$validated = $validator->validate($input, [
+    'quantity' => 'required|integer|divisible_by:3',
+]);
+```
+
+A callable may also be placed directly in a field's rule array for one-off
+validation. Invalid rule definitions and unknown named rules throw an
+`InvalidArgumentException` instead of silently passing.
+
 Browser validation failures flash sanitized input and redirect only to a
 same-origin location. JSON requests receive a `422` response without starting
 or changing the session.
@@ -260,15 +348,27 @@ return new class extends Migration {
 
 ## Console Commands
 
-The framework provides migration commands and configurable generators.
-Applications decide where generated files are written:
+The framework provides migration commands, route inspection, and configurable
+generators. Applications decide where generated files are written and pass the
+booted application router to `RouteListCommand`:
 
 ```php
+use WpsMicro\Core\Console\Commands\RouteListCommand;
+use WpsMicro\Core\Router;
+
+/** @var Router $router */
+$router = $kernel->getContainer()->get(Router::class);
+
 $console
+    ->add(new RouteListCommand($router))
     ->add(new MakeControllerCommand($root . '/app/Controllers', 'App\\Controllers'))
     ->add(new MakeModelCommand($root . '/app/Models', 'App\\Models'))
     ->add(new MakeMigrationCommand($root . '/database/migrations'));
 ```
+
+Running `php application/console.php route:list` prints each route's method,
+path, name, controller action, and middleware. The exact console entry-point
+path is owned by the application skeleton.
 
 No generator writes inside the installed framework package.
 
@@ -280,6 +380,21 @@ Install dependencies and run the framework suite:
 composer install
 composer test
 ```
+
+Run static analysis, check or apply formatting, and generate a coverage report:
+
+```bash
+composer analyse
+composer format:check
+composer format
+composer test:coverage
+composer quality
+```
+
+PHPStan runs at level 8. PHP CS Fixer enforces the project style, and the
+coverage command writes Clover XML to `build/coverage.xml` and enforces a 70%
+statement coverage floor. A PCOV or Xdebug coverage driver is required for the
+coverage command. GitHub Actions provides PCOV automatically.
 
 Validate package metadata:
 

@@ -20,31 +20,43 @@ class Request
 
     /**
      * Query string parameters.
+     *
+     * @var array<array-key, mixed>
      */
     private array $query;
 
     /**
      * Parsed request body parameters.
+     *
+     * @var array<array-key, mixed>
      */
     private array $request;
 
     /**
      * Server parameters.
+     *
+     * @var array<string, mixed>
      */
     private array $server;
 
     /**
      * Normalized HTTP headers.
+     *
+     * @var array<string, string>
      */
     private array $headers;
 
     /**
      * Uploaded files.
+     *
+     * @var array<string, mixed>
      */
     private array $files;
 
     /**
      * Request cookies.
+     *
+     * @var array<string, mixed>
      */
     private array $cookies;
 
@@ -55,11 +67,20 @@ class Request
 
     /**
      * Parsed JSON payload.
+     *
+     * @var null|array<array-key, mixed>
      */
     private ?array $json;
 
     /**
      * Create a request value object.
+     *
+     * @param array<array-key, mixed> $query
+     * @param array<array-key, mixed> $request
+     * @param array<string, mixed>  $server
+     * @param array<string, string> $headers
+     * @param array<string, mixed>  $files
+     * @param array<string, mixed>  $cookies
      */
     public function __construct(
         string $method,
@@ -70,7 +91,7 @@ class Request
         array $headers = [],
         array $files = [],
         array $cookies = [],
-        string $content = ''
+        string $content = '',
     ) {
         $this->headers = self::normalizeHeaders($headers);
         [$request, $json] = $this->parseBody($method, $request, $content);
@@ -104,7 +125,7 @@ class Request
             self::headersFromServer($_SERVER),
             $_FILES,
             $_COOKIE,
-            $content === false ? '' : $content
+            $content === false ? '' : $content,
         );
     }
 
@@ -126,6 +147,8 @@ class Request
 
     /**
      * Return all query parameters.
+     *
+     * @return array<array-key, mixed>
      */
     public function getQuery(): array
     {
@@ -146,6 +169,8 @@ class Request
 
     /**
      * Return all parsed request body parameters.
+     *
+     * @return array<array-key, mixed>
      */
     public function getRequest(): array
     {
@@ -166,6 +191,8 @@ class Request
 
     /**
      * Return all input data.
+     *
+     * @return array<array-key, mixed>
      */
     public function all(): array
     {
@@ -186,6 +213,10 @@ class Request
 
     /**
      * Return only selected input values.
+     *
+     * @param list<string> $keys
+     *
+     * @return array<array-key, mixed>
      */
     public function only(array $keys): array
     {
@@ -241,13 +272,15 @@ class Request
      */
     public function expectsJson(): bool
     {
-        $accept = strtolower($this->getHeader('Accept', ''));
+        $accept = strtolower($this->getHeader('Accept', '') ?? '');
 
         return $this->isAjax() || str_contains($accept, '/json') || str_contains($accept, '+json');
     }
 
     /**
      * Return all uploaded files.
+     *
+     * @return array<string, mixed>
      */
     public function getFiles(): array
     {
@@ -264,6 +297,8 @@ class Request
 
     /**
      * Return all request cookies.
+     *
+     * @return array<string, mixed>
      */
     public function getCookies(): array
     {
@@ -288,6 +323,8 @@ class Request
 
     /**
      * Return all server parameters.
+     *
+     * @return array<string, mixed>
      */
     public function getServer(): array
     {
@@ -296,6 +333,8 @@ class Request
 
     /**
      * Return all HTTP headers.
+     *
+     * @return array<string, string>
      */
     public function getHeaders(): array
     {
@@ -315,13 +354,15 @@ class Request
      */
     public function isAjax(): bool
     {
-        return strcasecmp($this->getHeader('X-Requested-With', ''), 'XMLHttpRequest') === 0;
+        return strcasecmp($this->getHeader('X-Requested-With', '') ?? '', 'XMLHttpRequest') === 0;
     }
 
     /**
      * Parse JSON and URL-encoded request bodies.
      *
-     * @return array{0: array, 1: ?array}
+     * @param array<array-key, mixed> $request
+     *
+     * @return array{0: array<array-key, mixed>, 1: null|array<array-key, mixed>}
      */
     private function parseBody(string $method, array $request, string $content): array
     {
@@ -339,7 +380,7 @@ class Request
             if (!is_array($json)) {
                 throw new BadRequestException(
                     'The JSON request body must contain an object or array.',
-                    $this->expectsJson()
+                    $this->expectsJson(),
                 );
             }
 
@@ -365,13 +406,17 @@ class Request
      */
     private function contentType(): string
     {
-        $contentType = strtolower($this->getHeader('Content-Type', ''));
+        $contentType = strtolower($this->getHeader('Content-Type', '') ?? '');
 
         return trim(explode(';', $contentType, 2)[0]);
     }
 
     /**
      * Convert server variables to normalized HTTP headers.
+     *
+     * @param array<string, mixed> $server
+     *
+     * @return array<string, string>
      */
     private static function headersFromServer(array $server): array
     {
@@ -400,6 +445,10 @@ class Request
 
     /**
      * Normalize explicitly provided HTTP headers.
+     *
+     * @param array<string, string> $headers
+     *
+     * @return array<string, string>
      */
     private static function normalizeHeaders(array $headers): array
     {
@@ -419,11 +468,13 @@ class Request
     {
         $path = parse_url($path, PHP_URL_PATH) ?: '/';
 
-        return $path === '' ? '/' : $path;
+        return $path;
     }
 
     /**
      * Normalize the HTTP method and support form method overrides.
+     *
+     * @param array<array-key, mixed> $request
      */
     private function normalizeMethod(string $method, array $request): string
     {

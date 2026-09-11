@@ -8,6 +8,11 @@ use WpsMicro\Core\Exceptions\ValidationException;
 
 class Validator
 {
+    /**
+     * Built-in validation rule names.
+     *
+     * @var list<string>
+     */
     private const RULES = [
         'required',
         'nullable',
@@ -25,7 +30,45 @@ class Validator
     ];
 
     /**
-     * Validate data with simple pipe-separated rules.
+     * Application-defined validation rules.
+     *
+     * @var array<string, callable(mixed, string, array<array-key, mixed>, ?string): mixed>
+     */
+    private array $customRules = [];
+
+    /**
+     * Register an application-defined validation rule.
+     *
+     * The callback receives value, field name, complete input, and an optional
+     * rule parameter. It returns true or null when valid, false for the default
+     * error, or a string containing a custom error message.
+     *
+     * @param callable(mixed, string, array<array-key, mixed>, ?string): mixed $rule
+     */
+    public function addRule(string $name, callable $rule): self
+    {
+        $name = trim($name);
+
+        if ($name === '' || preg_match('/^[a-z][a-z0-9_]*$/', $name) !== 1) {
+            throw new \InvalidArgumentException('Custom validation rule names must use snake_case.');
+        }
+
+        if (in_array($name, self::RULES, true)) {
+            throw new \InvalidArgumentException('Built-in validation rules cannot be replaced: '.$name);
+        }
+
+        $this->customRules[$name] = $rule;
+
+        return $this;
+    }
+
+    /**
+     * Validate data with pipe-separated, array, or callable rules.
+     *
+     * @param array<array-key, mixed>                                   $data
+     * @param array<string, mixed> $rules
+     *
+     * @return array<string, mixed>
      *
      * @throws ValidationException
      */
@@ -37,10 +80,21 @@ class Validator
         foreach ($rules as $field => $definition) {
             $value = $data[$field] ?? null;
             $value = is_string($value) ? trim($value) : $value;
-            $fieldRules = is_array($definition) ? $definition : explode('|', (string) $definition);
+            $fieldRules = $this->normalizeRules($definition);
+            $numericComparison = $this->usesNumericComparison($fieldRules);
 
             foreach ($fieldRules as $rule) {
-                $message = $this->validateRule((string) $field, $value, (string) $rule, $data);
+                if (is_callable($rule)) {
+                    $message = $this->validateCustomRule($rule, (string) $field, $value, $data);
+                } else {
+                    $message = $this->validateRule(
+                        (string) $field,
+                        $value,
+                        $rule,
+                        $data,
+                        $numericComparison,
+                    );
+                }
 
                 if ($message !== null && !in_array($message, $errors[$field] ?? [], true)) {
                     $errors[$field][] = $message;
@@ -60,16 +114,48 @@ class Validator
     }
 
     /**
-     * Validate one rule and return an error message when it fails.
+     * Normalize one field's validation rule definition.
      *
-     * @param mixed $value
+     * @param array<int, mixed>|callable|string $definition
+     *
+     * @return list<callable|string>
      */
-    private function validateRule(string $field, mixed $value, string $rule, array $data): ?string
+    private function normalizeRules(array|callable|string $definition): array
     {
-        [$name, $parameter] = array_pad(explode(':', $rule, 2), 2, null);
+        if (is_string($definition)) {
+            return explode('|', $definition);
+        }
 
-        if (!in_array($name, self::RULES, true)) {
-            throw new \InvalidArgumentException('Unknown validation rule: ' . $name);
+        if (is_callable($definition)) {
+            return [$definition];
+        }
+
+        foreach ($definition as $rule) {
+            if (!is_string($rule) && !is_callable($rule)) {
+                throw new \InvalidArgumentException('Validation rules must be strings or callables.');
+            }
+        }
+
+        return array_values($definition);
+    }
+
+    /**
+     * Validate one named rule and return an error message when it fails.
+     *
+     * @param array<array-key, mixed> $data
+     */
+    private function validateRule(
+        string $field,
+        mixed $value,
+        string $rule,
+        array $data,
+        bool $numericComparison,
+    ): ?string {
+        [$name, $parameter] = array_pad(explode(':', $rule, 2), 2, null);
+        $customRule = $this->customRules[$name] ?? null;
+
+        if (!in_array($name, self::RULES, true) && $customRule === null) {
+            throw new \InvalidArgumentException('Unknown validation rule: '.$name);
         }
 
         if ($name === 'nullable' && ($value === null || $value === '')) {
@@ -80,72 +166,191 @@ class Validator
             return null;
         }
 
+        if ($customRule !== null) {
+            return $this->validateCustomRule($customRule, $field, $value, $data, $parameter);
+        }
+
         switch ($name) {
             case 'required':
-                return in_array($value, [null, '', []], true) ? $field . ' is required.' : null;
+                return in_array($value, [null, '', []], true) ? $field.' is required.' : null;
             case 'string':
-                return !is_string($value) ? $field . ' must be a string.' : null;
+                return !is_string($value) ? $field.' must be a string.' : null;
             case 'array':
-                return !is_array($value) ? $field . ' must be an array.' : null;
+                return !is_array($value) ? $field.' must be an array.' : null;
             case 'boolean':
-                return !$this->isBoolean($value) ? $field . ' must be true or false.' : null;
+                return !$this->isBoolean($value) ? $field.' must be true or false.' : null;
             case 'email':
                 return !is_string($value) || filter_var($value, FILTER_VALIDATE_EMAIL) === false
-                    ? $field . ' must be a valid email.'
+                    ? $field.' must be a valid email.'
                     : null;
             case 'integer':
                 return (
                     (!is_int($value) && !is_string($value))
                     || filter_var($value, FILTER_VALIDATE_INT) === false
                 )
-                    ? $field . ' must be an integer.'
+                    ? $field.' must be an integer.'
                     : null;
             case 'numeric':
-                return is_bool($value) || !is_numeric($value) ? $field . ' must be numeric.' : null;
+                return is_bool($value) || !is_numeric($value) ? $field.' must be numeric.' : null;
             case 'url':
                 return !is_string($value) || filter_var($value, FILTER_VALIDATE_URL) === false
-                    ? $field . ' must be a valid URL.'
+                    ? $field.' must be a valid URL.'
                     : null;
             case 'min':
-                if (!is_string($value)) {
-                    return $field . ' must be a string.';
-                }
-
-                return $this->length($value) < (int) $parameter
-                    ? $field . ' must be at least ' . $parameter . ' characters.'
-                    : null;
+                return $this->validateMinimum($field, $value, $parameter, $numericComparison);
             case 'max':
-                if (!is_string($value)) {
-                    return $field . ' must be a string.';
-                }
-
-                return $this->length($value) > (int) $parameter
-                    ? $field . ' may not be greater than ' . $parameter . ' characters.'
-                    : null;
+                return $this->validateMaximum($field, $value, $parameter, $numericComparison);
             case 'in':
                 $allowed = $parameter === null ? [] : explode(',', $parameter);
 
                 if (!is_scalar($value)) {
-                    return $field . ' is invalid.';
+                    return $field.' is invalid.';
                 }
 
-                return !in_array((string) $value, $allowed, true) ? $field . ' is invalid.' : null;
+                return !in_array((string) $value, $allowed, true) ? $field.' is invalid.' : null;
             case 'confirmed':
-                $confirmation = $data[$field . '_confirmation'] ?? null;
+                $confirmation = $data[$field.'_confirmation'] ?? null;
                 $confirmation = is_string($confirmation) ? trim($confirmation) : $confirmation;
 
-                return $value !== $confirmation ? $field . ' confirmation does not match.' : null;
+                return $value !== $confirmation ? $field.' confirmation does not match.' : null;
             case 'nullable':
                 return null;
         }
 
-        throw new \LogicException('Validation rule was not handled: ' . $name);
     }
 
     /**
-     * Return a string length.
+     * Execute a custom validation callback.
      *
-     * @param mixed $value
+     * @param callable(mixed, string, array<array-key, mixed>, ?string): mixed $rule
+     * @param array<array-key, mixed>                                          $data
+     */
+    private function validateCustomRule(
+        callable $rule,
+        string $field,
+        mixed $value,
+        array $data,
+        ?string $parameter = null,
+    ): ?string {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        $result = $rule($value, $field, $data, $parameter);
+
+        if ($result === true || $result === null) {
+            return null;
+        }
+
+        if ($result === false || $result === '') {
+            return $field.' is invalid.';
+        }
+
+        if (is_string($result)) {
+            return $result;
+        }
+
+        throw new \UnexpectedValueException(
+            'Custom validation rules must return bool, string, or null.',
+        );
+    }
+
+    /**
+     * Validate a minimum numeric value or string length.
+     */
+    private function validateMinimum(
+        string $field,
+        mixed $value,
+        ?string $parameter,
+        bool $numericComparison,
+    ): ?string {
+        $limit = $this->limit($parameter, 'min');
+
+        if ($numericComparison) {
+            if (is_bool($value) || !is_numeric($value)) {
+                return null;
+            }
+
+            return (float) $value < $limit
+                ? $field.' must be at least '.$parameter.'.'
+                : null;
+        }
+
+        if (!is_string($value)) {
+            return $field.' must be a string.';
+        }
+
+        return $this->length($value) < $limit
+            ? $field.' must be at least '.$parameter.' characters.'
+            : null;
+    }
+
+    /**
+     * Validate a maximum numeric value or string length.
+     */
+    private function validateMaximum(
+        string $field,
+        mixed $value,
+        ?string $parameter,
+        bool $numericComparison,
+    ): ?string {
+        $limit = $this->limit($parameter, 'max');
+
+        if ($numericComparison) {
+            if (is_bool($value) || !is_numeric($value)) {
+                return null;
+            }
+
+            return (float) $value > $limit
+                ? $field.' may not be greater than '.$parameter.'.'
+                : null;
+        }
+
+        if (!is_string($value)) {
+            return $field.' must be a string.';
+        }
+
+        return $this->length($value) > $limit
+            ? $field.' may not be greater than '.$parameter.' characters.'
+            : null;
+    }
+
+    /**
+     * Parse and validate a numeric min or max parameter.
+     */
+    private function limit(?string $parameter, string $rule): float
+    {
+        if ($parameter === null || $parameter === '' || !is_numeric($parameter)) {
+            throw new \InvalidArgumentException($rule.' validation rule requires a numeric parameter.');
+        }
+
+        return (float) $parameter;
+    }
+
+    /**
+     * Check whether min and max should compare numeric values.
+     *
+     * @param list<callable|string> $rules
+     */
+    private function usesNumericComparison(array $rules): bool
+    {
+        foreach ($rules as $rule) {
+            if (!is_string($rule)) {
+                continue;
+            }
+
+            $name = explode(':', $rule, 2)[0];
+
+            if (in_array($name, ['integer', 'numeric'], true)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Return a UTF-8 string length.
      */
     private function length(string $value): int
     {
@@ -154,8 +359,6 @@ class Validator
 
     /**
      * Check whether a value is a supported boolean representation.
-     *
-     * @param mixed $value
      */
     private function isBoolean(mixed $value): bool
     {

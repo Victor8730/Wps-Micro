@@ -31,7 +31,7 @@ class ErrorHandler
                 $exception->getMessage(),
                 400,
                 $request,
-                $exception->expectsJson()
+                $exception->expectsJson(),
             );
         }
 
@@ -63,9 +63,8 @@ class ErrorHandler
         string $message,
         int $statusCode,
         ?Request $request,
-        bool $expectsJson = false
-    ): Response
-    {
+        bool $expectsJson = false,
+    ): Response {
         if ($expectsJson || $request?->expectsJson()) {
             return new JsonResponse(['message' => $message], $statusCode);
         }
@@ -87,7 +86,7 @@ class ErrorHandler
             $exception->getMessage(),
             $exception->getFile(),
             $exception->getLine(),
-            $exception->getTraceAsString()
+            $exception->getTraceAsString(),
         );
         $path = (string) $this->config->get('logging.path', '');
 

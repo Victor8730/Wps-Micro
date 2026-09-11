@@ -50,7 +50,7 @@ class Database
             $this->config->get('database.host', '127.0.0.1'),
             $this->config->get('database.port', '3306'),
             $this->config->get('database.database'),
-            $this->config->get('database.charset', 'utf8mb4')
+            $this->config->get('database.charset', 'utf8mb4'),
         );
     }
 

@@ -8,6 +8,8 @@ class Application
 {
     /**
      * Registered console commands.
+     *
+     * @var array<string, Command>
      */
     private array $commands = [];
 
@@ -23,6 +25,8 @@ class Application
 
     /**
      * Run the requested console command.
+     *
+     * @param list<string> $argv
      */
     public function run(array $argv): int
     {

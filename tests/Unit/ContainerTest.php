@@ -69,10 +69,21 @@ final class ContainerTest extends TestCase
         self::assertFalse($container->bound(AutowireService::class));
 
         $container->set(AutowireService::class, static fn (): AutowireService => new AutowireService(
-            new AutowireDependency()
+            new AutowireDependency(),
         ));
 
         self::assertTrue($container->bound(AutowireService::class));
+    }
+
+    public function testItResolvesAnIntersectionCandidateInsideAUnionType(): void
+    {
+        $container = new Container();
+        $dependency = new DnfDependency();
+        $container->instance('dnf.dependency', $dependency);
+
+        $consumer = $container->make(DnfConsumer::class);
+
+        self::assertSame($dependency, $consumer->dependency);
     }
 }
 
@@ -118,4 +129,27 @@ final class CircularB
 
 abstract class AbstractContainerEntry
 {
+}
+
+interface DnfContractA
+{
+}
+
+interface DnfContractB
+{
+}
+
+interface DnfFallback
+{
+}
+
+final class DnfDependency implements DnfContractA, DnfContractB
+{
+}
+
+final class DnfConsumer
+{
+    public function __construct(public readonly (DnfContractA&DnfContractB)|DnfFallback $dependency)
+    {
+    }
 }

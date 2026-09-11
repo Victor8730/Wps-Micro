@@ -57,7 +57,7 @@ final class ErrorHandlerTest extends TestCase
         self::assertSame(400, $response->getStatusCode());
         self::assertSame(
             ['message' => 'Invalid payload.'],
-            json_decode($response->getContent(), true, 512, JSON_THROW_ON_ERROR)
+            json_decode($response->getContent(), true, 512, JSON_THROW_ON_ERROR),
         );
         self::assertSame('application/json; charset=utf-8', $response->getHeaders()['Content-Type']);
     }

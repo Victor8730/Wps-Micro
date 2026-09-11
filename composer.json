@@ -10,6 +10,9 @@
     }
   ],
   "config": {
+    "platform": {
+      "php": "8.3.0"
+    },
     "sort-packages": true
   },
   "require": {
@@ -31,20 +34,38 @@
     }
   },
   "require-dev": {
+    "ext-dom": "*",
+    "friendsofphp/php-cs-fixer": "^3.0",
+    "phpstan/phpstan": "^2.1",
     "phpunit/phpunit": "^12.5"
   },
   "scripts": {
-    "test": "phpunit --configuration phpunit.xml.dist"
+    "analyse": "phpstan analyse --configuration=phpstan.neon.dist --no-progress",
+    "format": "php-cs-fixer fix --config=.php-cs-fixer.dist.php --sequential",
+    "format:check": "php-cs-fixer fix --config=.php-cs-fixer.dist.php --dry-run --diff --sequential",
+    "quality": [
+      "@format:check",
+      "@analyse",
+      "@test"
+    ],
+    "test": "phpunit --configuration phpunit.xml.dist",
+    "test:coverage": [
+      "phpunit --configuration phpunit.xml.dist --coverage-clover build/coverage.xml --coverage-text",
+      "@php tools/check-coverage.php build/coverage.xml 70"
+    ]
   },
   "archive": {
     "exclude": [
       "**/.DS_Store",
       "/.github/",
       "/.idea/",
+      "/.php-cs-fixer.dist.php",
       "/.phpunit.cache/",
+      "/phpstan.neon.dist",
       "/composer.lock",
       "/phpunit.xml.dist",
       "/tests/",
+      "/tools/",
       "/vendor/"
     ]
   }

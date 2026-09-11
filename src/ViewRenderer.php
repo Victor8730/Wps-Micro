@@ -26,6 +26,8 @@ class ViewRenderer
 
     /**
      * Render a Twig template with context data.
+     *
+     * @param array<string, mixed> $context
      */
     public function render(string $template, array $context = []): string
     {

@@ -27,6 +27,8 @@ class Migrator
 
     /**
      * Apply pending migrations and return their names.
+     *
+     * @return list<string>
      */
     public function migrate(): array
     {
@@ -58,6 +60,8 @@ class Migrator
 
     /**
      * Roll back applied migrations and return their names.
+     *
+     * @return list<string>
      */
     public function rollback(int $steps = 1): array
     {
@@ -99,7 +103,7 @@ class Migrator
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     migration VARCHAR(255) NOT NULL UNIQUE,
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-                )'
+                )',
             );
 
             return;
@@ -110,22 +114,33 @@ class Migrator
                 id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
                 migration VARCHAR(255) NOT NULL UNIQUE,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )'
+            )',
         );
     }
 
     /**
      * Return already applied migration names.
+     *
+     * @return list<string>
      */
     private function ranMigrations(): array
     {
         $statement = $this->db->query('SELECT migration FROM migrations ORDER BY id ASC');
 
-        return $statement === false ? [] : $statement->fetchAll(\PDO::FETCH_COLUMN);
+        if ($statement === false) {
+            return [];
+        }
+
+        return array_values(array_map(
+            static fn (mixed $name): string => (string) $name,
+            $statement->fetchAll(\PDO::FETCH_COLUMN),
+        ));
     }
 
     /**
      * Return last applied migration names.
+     *
+     * @return list<string>
      */
     private function lastMigrations(int $steps): array
     {
@@ -133,11 +148,16 @@ class Migrator
         $statement->bindValue(':steps', $steps, \PDO::PARAM_INT);
         $statement->execute();
 
-        return $statement->fetchAll(\PDO::FETCH_COLUMN);
+        return array_values(array_map(
+            static fn (mixed $name): string => (string) $name,
+            $statement->fetchAll(\PDO::FETCH_COLUMN),
+        ));
     }
 
     /**
      * Return migration files sorted by name.
+     *
+     * @return list<string>
      */
     private function migrationFiles(): array
     {

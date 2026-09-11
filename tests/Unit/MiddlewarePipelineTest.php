@@ -25,7 +25,7 @@ final class MiddlewarePipelineTest extends TestCase
                 $boundRequest = $container->get(Request::class);
 
                 return new Response($request->getPath() . ':' . $boundRequest->getPath());
-            }
+            },
         );
 
         self::assertSame('/changed:/changed', $response->getContent());

@@ -76,7 +76,7 @@ final class MigratorTest extends TestCase
     private function sqliteTable(\PDO $db, string $name): string|false
     {
         $statement = $db->prepare(
-            "SELECT name FROM sqlite_master WHERE type = 'table' AND name = :name"
+            "SELECT name FROM sqlite_master WHERE type = 'table' AND name = :name",
         );
         $statement->execute(['name' => $name]);
 
@@ -87,7 +87,7 @@ final class MigratorTest extends TestCase
     {
         $statement = $db->prepare(
             'SELECT COUNT(*) FROM information_schema.tables
-             WHERE table_schema = DATABASE() AND table_name = :name'
+             WHERE table_schema = DATABASE() AND table_name = :name',
         );
         $statement->execute(['name' => $name]);
 

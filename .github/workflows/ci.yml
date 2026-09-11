@@ -42,6 +42,33 @@ jobs:
       - name: Run tests
         run: composer test
 
+  quality:
+    name: Static analysis, style, and coverage
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: dom, json, libxml, mbstring, pdo, pdo_sqlite, simplexml
+          coverage: pcov
+
+      - name: Install dependencies
+        run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Check code style
+        run: composer format:check
+
+      - name: Run static analysis
+        run: composer analyse
+
+      - name: Enforce test coverage
+        run: composer test:coverage
+
   mariadb:
     name: MariaDB migrations
     runs-on: ubuntu-latest

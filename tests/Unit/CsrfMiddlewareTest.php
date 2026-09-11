@@ -24,12 +24,12 @@ final class CsrfMiddlewareTest extends TestCase
             [],
             [],
             [],
-            ['X-CSRF-Token' => $csrf->token()]
+            ['X-CSRF-Token' => $csrf->token()],
         );
 
         $response = $middleware->handle(
             $request,
-            static fn (): Response => new Response('accepted')
+            static fn (): Response => new Response('accepted'),
         );
 
         self::assertSame('accepted', $response->getContent());
@@ -43,7 +43,7 @@ final class CsrfMiddlewareTest extends TestCase
 
         $middleware->handle(
             new Request('DELETE', '/cart/42', [], ['_token' => 'invalid']),
-            static fn (): Response => new Response('not reached')
+            static fn (): Response => new Response('not reached'),
         );
     }
 }

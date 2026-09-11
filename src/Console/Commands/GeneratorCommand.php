@@ -21,6 +21,8 @@ abstract class GeneratorCommand
 
     /**
      * Return the first CLI argument as a required name.
+     *
+     * @param list<string> $arguments
      */
     protected function requiredName(array $arguments): string
     {
