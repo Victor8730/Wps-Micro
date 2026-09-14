@@ -22,6 +22,16 @@ The project follows [Semantic Versioning](https://semver.org/).
 - CI now verifies static analysis, code style, and test coverage on PHP 8.3.
 - Container reflection handles union types containing intersection candidates.
 - Framework array contracts are documented for static analysis.
+- Duplicate route and name checks use indexes instead of scanning all routes.
+
+### Fixed
+
+- Middleware instances retain their identity in route definitions and groups.
+- Named validation rules no longer collide with callable PHP function names.
+- Route constraints consistently match decoded Unicode and encoded parameters,
+  without treating encoded slashes as literal route separators.
+- Integer validation bounds retain precision and numeric rules reject non-finite values.
+- Empty route groups no longer trigger an array-offset deprecation on PHP 8.5.
 
 ## [3.0.0] - 2026-07-22
 

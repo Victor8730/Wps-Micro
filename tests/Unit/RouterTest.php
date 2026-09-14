@@ -195,6 +195,172 @@ final class RouterTest extends TestCase
     {
         return new Router();
     }
+
+    public function testMiddlewareInstancesKeepTheirIdentityAndOrder(): void
+    {
+        $router = $this->router();
+        $outer = new RouterGroupMiddleware();
+        $inner = new RouterGroupMiddleware();
+        $routeMiddleware = new class () implements Middleware {
+            public string $role = 'admin';
+
+            public function handle(Request $request, callable $next): Response
+            {
+                return new Response($this->role, 403);
+            }
+        };
+
+        $router->group(['middleware' => $outer], static function (Router $router) use ($inner, $routeMiddleware): void {
+            $router->group(['middleware' => [$inner]], static function (Router $router) use ($routeMiddleware): void {
+                $router->get('/private', [RouterTestController::class, 'show'])
+                    ->middleware(new RouterGroupMiddleware())
+                    ->middleware($routeMiddleware)
+                    ->middleware([RouterGroupMiddleware::class]);
+            });
+        });
+
+        $middleware = $router->match(new Request('GET', '/private'))->getMiddleware();
+
+        self::assertCount(5, $middleware);
+        self::assertSame($outer, $middleware[0]);
+        self::assertSame($inner, $middleware[1]);
+        self::assertInstanceOf(RouterGroupMiddleware::class, $middleware[2]);
+        self::assertSame($routeMiddleware, $middleware[3]);
+        self::assertSame(RouterGroupMiddleware::class, $middleware[4]);
+    }
+
+    public function testEncodedParametersRoundTripThroughConstraints(): void
+    {
+        $router = $this->router();
+        $router->get('/city/{name}', [RouterTestController::class, 'show'])
+            ->where('name', '[\\p{L}0-9 +%]+')->name('city');
+
+        foreach (["caf\u{00e9}", "\u{041a}\u{0438}\u{0457}\u{0432}", 'New York', 'A+B', '%2F'] as $name) {
+            $url = $router->url('city', ['name' => $name]);
+            self::assertSame('/city/'.rawurlencode($name), $url);
+            self::assertSame(['name' => $name], $router->match(new Request('GET', $url))->getParameters());
+        }
+    }
+
+    public function testEncodedNumbersAndMultipleParametersMatchTheirConstraints(): void
+    {
+        $router = $this->router();
+        $router->get('/files/{name}.{extension}/{id}', [RouterTestController::class, 'show'])
+            ->where(['name' => '[\\p{L}]+', 'extension' => 'txt|csv'])->whereNumber('id')->name('file');
+
+        $parameters = ['name' => "caf\u{00e9}", 'extension' => 'txt', 'id' => '42'];
+        $url = $router->url('file', $parameters);
+
+        self::assertSame($parameters, $router->match(new Request('GET', $url))->getParameters());
+        self::assertSame($parameters, $router->match(new Request('GET', '/files/caf%C3%A9.txt/%34%32'))->getParameters());
+    }
+
+    public function testEncodedSlashesAreAllowedOnlyInsideMatchingParameters(): void
+    {
+        $router = $this->router();
+        $router->get('/files/{path}', [RouterTestController::class, 'show'])
+            ->where('path', '.+')->name('files');
+
+        foreach (['a/b', "caf\u{00e9}/b", '%2F', '/a/'] as $path) {
+            $url = $router->url('files', ['path' => $path]);
+            self::assertSame(['path' => $path], $router->match(new Request('GET', $url))->getParameters());
+        }
+
+        self::assertSame(['path' => 'a/b'], $router->match(new Request('GET', '/files/a/b'))->getParameters());
+        self::assertSame(['path' => 'a/b'], $router->match(new Request('GET', '/files/a%2fb'))->getParameters());
+    }
+
+    public function testEncodedSlashesCannotReplaceLiteralSeparatorsOrBypassDefaultConstraints(): void
+    {
+        $router = $this->router();
+        $router->get('/items/{id}', [RouterTestController::class, 'show']);
+        $router->get('/items/{id}/edit', [RouterTestController::class, 'show']);
+        $router->get('/items/{id}/edit/{action}', [RouterTestController::class, 'show']);
+
+        foreach (['/items/a%2Fb', '/items/a%2Fedit', '/items/a%2fedit/b', '/items%2Fa', '/items/a%2F'] as $path) {
+            foreach (['GET', 'POST'] as $method) {
+                try {
+                    $router->match(new Request($method, $path));
+                    self::fail('An encoded separator was accepted: '.$path);
+                } catch (HttpNotFoundException) {
+                    self::addToAssertionCount(1);
+                }
+            }
+        }
+    }
+
+    public function testEncodedConstraintsAreAlsoUsedForHeadAndMethodErrors(): void
+    {
+        $router = $this->router();
+        $router->get('/city/{name}', [RouterTestController::class, 'show'])->where('name', '[\\p{L}]+');
+        $router->post('/city/{name}', [RouterTestController::class, 'show'])->whereNumber('name');
+
+        self::assertSame(['name' => "caf\u{00e9}"], $router->match(new Request('HEAD', '/city/caf%C3%A9'))->getParameters());
+
+        try {
+            $router->match(new Request('DELETE', '/city/caf%C3%A9'));
+            self::fail('Expected a method error.');
+        } catch (MethodNotAllowedException $exception) {
+            self::assertSame(['GET', 'HEAD'], $exception->getAllowedMethods());
+        }
+
+        $this->expectException(HttpNotFoundException::class);
+        $router->match(new Request('DELETE', '/city/%21'));
+    }
+
+    public function testNameIndexesStayConsistentAfterRenamesAndRejectedDuplicates(): void
+    {
+        $router = $this->router();
+        $first = $router->add(['GET', 'POST'], '/first', [RouterTestController::class, 'show'])->name('first');
+        $second = $router->get('/second', [RouterTestController::class, 'show'])->name('second');
+        $first->name('first');
+
+        try {
+            $first->name('second');
+            self::fail('A duplicate name was accepted.');
+        } catch (\InvalidArgumentException) {
+            self::assertSame('/first', $router->url('first'));
+            self::assertSame('/second', $router->url('second'));
+            self::assertSame('first', $router->match(new Request('POST', '/first'))->getName());
+        }
+
+        $first->name('renamed');
+        $second->name('first');
+
+        self::assertSame('/first', $router->url('renamed'));
+        self::assertSame('/second', $router->url('first'));
+        self::assertSame('renamed', $router->match(new Request('GET', '/first'))->getName());
+        self::assertSame('renamed', $router->match(new Request('POST', '/first'))->getName());
+    }
+
+    public function testDynamicDuplicateChecksAreAtomicAcrossMethods(): void
+    {
+        $router = $this->router();
+        $router->get('/items/{id}', [RouterTestController::class, 'show'])->whereNumber('id');
+
+        try {
+            $router->add(['POST', 'GET'], '/items/{id}', [RouterTestController::class, 'show']);
+            self::fail('A duplicate dynamic route was accepted.');
+        } catch (\InvalidArgumentException) {
+            self::assertCount(1, $router->getRoutes());
+        }
+
+        $router->post('/items/{id}', [RouterTestController::class, 'show']);
+        self::assertCount(2, $router->getRoutes());
+    }
+
+    public function testItRegistersALargeNamedRouteTable(): void
+    {
+        $router = $this->router();
+
+        for ($index = 0; $index < 4000; ++$index) {
+            $router->get('/items/'.$index.'/{id}', [RouterTestController::class, 'show'])->name('items.'.$index);
+        }
+
+        self::assertCount(4000, $router->getRoutes());
+        self::assertSame('/items/0/1', $router->url('items.0', ['id' => 1]));
+        self::assertSame('/items/3999/1', $router->url('items.3999', ['id' => 1]));
+    }
 }
 
 final class RouterTestController

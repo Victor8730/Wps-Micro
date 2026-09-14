@@ -4,12 +4,107 @@ declare(strict_types=1);
 
 namespace WpsMicro\Tests\Unit;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use WpsMicro\Core\Exceptions\ValidationException;
 use WpsMicro\Core\Validator;
 
 final class ValidatorTest extends TestCase
 {
+    public function testRegisteredNamesTakePriorityOverPhpFunctions(): void
+    {
+        $validator = new Validator();
+        $validator->addRule('is_int', static fn (mixed $value): bool => $value === 'custom');
+
+        self::assertSame(['value' => 'custom'], $validator->validate(['value' => 'custom'], ['value' => 'is_int']));
+        self::assertSame(['value' => 'custom'], $validator->validate(['value' => 'custom'], ['value' => ['is_int']]));
+
+        $this->expectException(ValidationException::class);
+        $validator->validate(['value' => 42], ['value' => 'is_int']);
+    }
+
+    public function testUnregisteredPhpFunctionNamesAreRejected(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Unknown validation rule: is_int');
+
+        (new Validator())->validate(['value' => 42], ['value' => 'is_int']);
+    }
+
+    public function testInlineCallableFormsStillWork(): void
+    {
+        $rule = new class () {
+            public function __invoke(mixed $value): bool
+            {
+                return $this->accept($value);
+            }
+
+            public function accept(mixed $value): bool
+            {
+                return $value === 'valid';
+            }
+        };
+
+        foreach ([$rule, [$rule, 'accept'], [[$rule, 'accept']], [$rule->accept(...)]] as $definition) {
+            self::assertSame(['value' => 'valid'], (new Validator())->validate(['value' => 'valid'], ['value' => $definition]));
+        }
+    }
+
+    #[DataProvider('numericBoundaries')]
+    public function testNumericBoundariesPreserveIntegerPrecision(int|string $value, string $rules, bool $valid): void
+    {
+        if (!$valid) {
+            $this->expectException(ValidationException::class);
+        }
+
+        self::assertSame(['value' => $value], (new Validator())->validate(['value' => $value], ['value' => $rules]));
+    }
+
+    public static function numericBoundaries(): iterable
+    {
+        yield ['9007199254740993', 'numeric|max:9007199254740992', false];
+        yield [9007199254740993, 'integer|max:9007199254740992', false];
+        yield ['9007199254740992', 'numeric|min:9007199254740993', false];
+        yield ['9007199254740993', 'numeric|min:9007199254740993|max:9007199254740993', true];
+        yield ['9223372036854775809', 'numeric|max:9223372036854775808', false];
+        yield ['-9223372036854775809', 'numeric|min:-9223372036854775808', false];
+        yield ['-9223372036854775808', 'numeric|min:-9223372036854775808', true];
+        yield ['+0009007199254740993', 'numeric|max:+0009007199254740992', false];
+        yield ['-00042', 'numeric|min:-42|max:-42', true];
+        yield ['-0', 'numeric|min:+0|max:000', true];
+        yield ['0', 'numeric|min:-0|max:+0', true];
+        yield ['-1', 'numeric|min:0', false];
+        yield ['1', 'numeric|max:-1', false];
+        yield ['10', 'numeric|min:9', true];
+        yield ['-10', 'numeric|max:-9', true];
+        yield ['1.25', 'numeric|min:1.2|max:1.3', true];
+        yield ['1e2', 'numeric|min:99|max:101', true];
+    }
+
+    #[DataProvider('nonFiniteNumbers')]
+    public function testNumericRejectsNonFiniteValues(mixed $value): void
+    {
+        $this->expectException(ValidationException::class);
+        (new Validator())->validate(['value' => $value], ['value' => 'numeric|min:0|max:100']);
+    }
+
+    public static function nonFiniteNumbers(): iterable
+    {
+        yield [NAN];
+        yield [INF];
+        yield [-INF];
+        yield ['NAN'];
+        yield ['INF'];
+        yield ['1e999'];
+        yield [true];
+    }
+
+    public function testNonFiniteLimitsAreConfigurationErrors(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        (new Validator())->validate(['value' => 1], ['value' => 'numeric|max:1e999']);
+    }
+
     public function testItReturnsOnlyValidatedAndTrimmedInput(): void
     {
         $validator = new Validator();

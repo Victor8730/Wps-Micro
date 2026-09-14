@@ -31,6 +31,13 @@ class RouteDefinition
     private \Closure $onChange;
 
     /**
+     * Indexed name validation supplied by the owning router.
+     *
+     * @var null|\Closure(string, list<int>): void
+     */
+    private ?\Closure $validateName;
+
+    /**
      * Name prefix inherited from nested groups.
      */
     private string $namePrefix;
@@ -41,12 +48,14 @@ class RouteDefinition
      * @param list<RouteData> $routes
      * @param list<int>       $indexes
      * @param null|callable(string, list<int>, list<string|null>): void $onChange
+     * @param null|callable(string, list<int>): void $validateName
      */
     public function __construct(
         array &$routes,
         array $indexes,
         ?callable $onChange = null,
         string $namePrefix = '',
+        ?callable $validateName = null,
     ) {
         $this->routes = &$routes;
         $this->indexes = $indexes;
@@ -58,6 +67,7 @@ class RouteDefinition
         }
 
         $this->namePrefix = $namePrefix;
+        $this->validateName = $validateName === null ? null : \Closure::fromCallable($validateName);
     }
 
     /**
@@ -67,8 +77,10 @@ class RouteDefinition
      */
     public function middleware(array|string|Middleware $middleware): self
     {
+        $middleware = is_array($middleware) ? $middleware : [$middleware];
+
         foreach ($this->indexes as $index) {
-            foreach ((array) $middleware as $item) {
+            foreach ($middleware as $item) {
                 $this->routes[$index]['middleware'][] = $item;
             }
         }
@@ -87,12 +99,16 @@ class RouteDefinition
             throw new \InvalidArgumentException('Route name cannot be empty.');
         }
 
-        foreach ($this->routes as $index => $route) {
-            if (
-                !in_array($index, $this->indexes, true)
-                && ($route['name'] ?? null) === $name
-            ) {
-                throw new \InvalidArgumentException('Duplicate route name: '.$name);
+        if ($this->validateName !== null) {
+            ($this->validateName)($name, $this->indexes);
+        } else {
+            foreach ($this->routes as $index => $route) {
+                if (
+                    !in_array($index, $this->indexes, true)
+                    && ($route['name'] ?? null) === $name
+                ) {
+                    throw new \InvalidArgumentException('Duplicate route name: '.$name);
+                }
             }
         }
 

@@ -84,7 +84,7 @@ class Validator
             $numericComparison = $this->usesNumericComparison($fieldRules);
 
             foreach ($fieldRules as $rule) {
-                if (is_callable($rule)) {
+                if (!is_string($rule)) {
                     $message = $this->validateCustomRule($rule, (string) $field, $value, $data);
                 } else {
                     $message = $this->validateRule(
@@ -191,7 +191,7 @@ class Validator
                     ? $field.' must be an integer.'
                     : null;
             case 'numeric':
-                return is_bool($value) || !is_numeric($value) ? $field.' must be numeric.' : null;
+                return !$this->isFiniteNumber($value) ? $field.' must be numeric.' : null;
             case 'url':
                 return !is_string($value) || filter_var($value, FILTER_VALIDATE_URL) === false
                     ? $field.' must be a valid URL.'
@@ -267,11 +267,11 @@ class Validator
         $limit = $this->limit($parameter, 'min');
 
         if ($numericComparison) {
-            if (is_bool($value) || !is_numeric($value)) {
+            if (!$this->isFiniteNumber($value)) {
                 return null;
             }
 
-            return (float) $value < $limit
+            return $this->compareNumbers($value, $limit) < 0
                 ? $field.' must be at least '.$parameter.'.'
                 : null;
         }
@@ -297,11 +297,11 @@ class Validator
         $limit = $this->limit($parameter, 'max');
 
         if ($numericComparison) {
-            if (is_bool($value) || !is_numeric($value)) {
+            if (!$this->isFiniteNumber($value)) {
                 return null;
             }
 
-            return (float) $value > $limit
+            return $this->compareNumbers($value, $limit) > 0
                 ? $field.' may not be greater than '.$parameter.'.'
                 : null;
         }
@@ -318,13 +318,46 @@ class Validator
     /**
      * Parse and validate a numeric min or max parameter.
      */
-    private function limit(?string $parameter, string $rule): float
+    private function limit(?string $parameter, string $rule): string
     {
-        if ($parameter === null || $parameter === '' || !is_numeric($parameter)) {
+        if ($parameter === null || !$this->isFiniteNumber($parameter)) {
             throw new \InvalidArgumentException($rule.' validation rule requires a numeric parameter.');
         }
 
-        return (float) $parameter;
+        return trim($parameter);
+    }
+
+    /**
+     * Accept finite numeric values without coercing booleans.
+     *
+     * @phpstan-assert-if-true int|float|numeric-string $value
+     */
+    private function isFiniteNumber(mixed $value): bool
+    {
+        return is_numeric($value) && is_finite((float) $value);
+    }
+
+    /**
+     * Compare integer representations exactly, including values beyond PHP_INT_MAX.
+     */
+    private function compareNumbers(int|float|string $value, string $limit): int
+    {
+        $left = (string) $value;
+
+        if (preg_match('/^[+-]?[0-9]+$/D', $left) === 1 && preg_match('/^[+-]?[0-9]+$/D', $limit) === 1) {
+            $leftDigits = ltrim(ltrim($left, '+-'), '0');
+            $rightDigits = ltrim(ltrim($limit, '+-'), '0');
+            $leftSign = $leftDigits === '' ? 0 : (str_starts_with($left, '-') ? -1 : 1);
+            $rightSign = $rightDigits === '' ? 0 : (str_starts_with($limit, '-') ? -1 : 1);
+
+            if ($leftSign !== $rightSign) {
+                return $leftSign <=> $rightSign;
+            }
+
+            return $leftSign * ((strlen($leftDigits) <=> strlen($rightDigits)) ?: (strcmp($leftDigits, $rightDigits) <=> 0));
+        }
+
+        return $value <=> $limit;
     }
 
     /**

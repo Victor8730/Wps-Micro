@@ -30,6 +30,13 @@ class Router
     private array $routes = [];
 
     /**
+     * Registered method/path pairs used for constant-time duplicate checks.
+     *
+     * @var array<string, array<string, int>>
+     */
+    private array $routeIndexes = [];
+
+    /**
      * Static route indexes grouped by method and path.
      *
      * @var array<string, array<string, int>>
@@ -171,6 +178,13 @@ class Router
                 $this->refreshRoutes($change, $changedIndexes, $previousNames);
             },
             $group['name'],
+            function (string $name, array $indexes): void {
+                $existing = $this->namedRoutes[$name] ?? null;
+
+                if ($existing !== null && !in_array($existing, $indexes, true)) {
+                    throw new \InvalidArgumentException('Duplicate route name: '.$name);
+                }
+            },
         );
     }
 
@@ -210,6 +224,7 @@ class Router
     {
         $methods = $request->getMethod() === 'HEAD' ? ['HEAD', 'GET'] : [$request->getMethod()];
         $path = $this->normalizePath($request->getPath());
+        [$decodedPath, $encodedSlashes] = $this->decodePath($path);
 
         foreach ($methods as $method) {
             $staticIndex = $this->staticRoutes[$method][$path] ?? null;
@@ -219,7 +234,7 @@ class Router
             }
 
             foreach ($this->dynamicRoutes[$method] ?? [] as $index) {
-                $parameters = $this->matchCompiledPath($this->routes[$index], $path);
+                $parameters = $this->matchCompiledPath($this->routes[$index], $decodedPath, $encodedSlashes);
 
                 if ($parameters !== null) {
                     return $this->buildRouteMatch($this->routes[$index], $parameters);
@@ -227,7 +242,7 @@ class Router
             }
         }
 
-        $allowedMethods = $this->allowedMethods($path, $request->getMethod());
+        $allowedMethods = $this->allowedMethods($path, $request->getMethod(), $decodedPath, $encodedSlashes);
 
         if ($allowedMethods !== []) {
             throw new MethodNotAllowedException($allowedMethods);
@@ -325,14 +340,16 @@ class Router
     /**
      * Return methods registered for a path other than the current method.
      *
+     * @param list<int> $encodedSlashes
+     *
      * @return list<string>
      */
-    private function allowedMethods(string $path, string $currentMethod): array
+    private function allowedMethods(string $path, string $currentMethod, string $decodedPath, array $encodedSlashes): array
     {
         $methods = [];
 
         foreach ($this->routes as $route) {
-            if ($route['method'] === $currentMethod || !$this->routeMatchesPath($route, $path)) {
+            if ($route['method'] === $currentMethod || !$this->routeMatchesPath($route, $path, $decodedPath, $encodedSlashes)) {
                 continue;
             }
 
@@ -390,24 +407,56 @@ class Router
      * Match a compiled dynamic route against a normalized request path.
      *
      * @param RouteData $route
+     * @param list<int> $encodedSlashes
      *
      * @return null|array<string, string>
      */
-    private function matchCompiledPath(array $route, string $requestPath): ?array
+    private function matchCompiledPath(array $route, string $requestPath, array $encodedSlashes): ?array
     {
         $pattern = $route['pattern'];
 
-        if ($pattern === null || preg_match($pattern, $requestPath, $matches) !== 1) {
+        if ($pattern === null || preg_match($pattern, $requestPath, $matches, PREG_OFFSET_CAPTURE) !== 1) {
             return null;
         }
 
         $parameters = [];
 
         foreach ($route['parameters'] as $name) {
-            $parameters[$name] = rawurldecode((string) $matches[$name]);
+            [$value, $offset] = $matches[$name];
+            $parameters[$name] = $value;
+
+            foreach ($encodedSlashes as $key => $slashOffset) {
+                if ($slashOffset >= $offset && $slashOffset < $offset + strlen($value)) {
+                    unset($encodedSlashes[$key]);
+                }
+            }
         }
 
-        return $parameters;
+        // Encoded slashes may belong to parameters, never to route separators.
+        return $encodedSlashes === [] ? $parameters : null;
+    }
+
+    /**
+     * Decode once while retaining the byte offsets of encoded path separators.
+     *
+     * @return array{string, list<int>}
+     */
+    private function decodePath(string $path): array
+    {
+        if (!str_contains($path, '%')) {
+            return [$path, []];
+        }
+
+        $slashes = [];
+        preg_match_all('/%[0-9a-f]{2}/i', $path, $matches, PREG_OFFSET_CAPTURE);
+
+        foreach ($matches[0] as $index => [$encoded, $offset]) {
+            if (strcasecmp($encoded, '%2f') === 0) {
+                $slashes[] = $offset - 2 * $index;
+            }
+        }
+
+        return [rawurldecode($path), $slashes];
     }
 
     /**
@@ -510,6 +559,8 @@ class Router
     {
         $route = $this->routes[$index];
 
+        $this->routeIndexes[$route['method']][$route['path']] = $index;
+
         if ($route['pattern'] === null) {
             $this->staticRoutes[$route['method']][$route['path']] = $index;
         } else {
@@ -533,12 +584,13 @@ class Router
      * Check whether one route path matches a normalized request path.
      *
      * @param RouteData $route
+     * @param list<int> $encodedSlashes
      */
-    private function routeMatchesPath(array $route, string $path): bool
+    private function routeMatchesPath(array $route, string $path, string $decodedPath, array $encodedSlashes): bool
     {
         return $route['pattern'] === null
             ? $route['path'] === $path
-            : preg_match($route['pattern'], $path) === 1;
+            : $this->matchCompiledPath($route, $decodedPath, $encodedSlashes) !== null;
     }
 
     /**
@@ -546,13 +598,7 @@ class Router
      */
     private function hasRoute(string $method, string $path): bool
     {
-        foreach ($this->routes as $route) {
-            if ($route['method'] === $method && $route['path'] === $path) {
-                return true;
-            }
-        }
-
-        return false;
+        return isset($this->routeIndexes[$method][$path]);
     }
 
     /**
@@ -590,7 +636,7 @@ class Router
      */
     private function normalizeMiddleware(array|string|Middleware $middleware): array
     {
-        return array_values((array) $middleware);
+        return is_array($middleware) ? array_values($middleware) : [$middleware];
     }
 
     /**

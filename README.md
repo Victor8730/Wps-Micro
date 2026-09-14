@@ -208,6 +208,11 @@ Missing parameters, values that fail a constraint, duplicate method/path
 pairs, and duplicate names fail with an `InvalidArgumentException` during
 registration or URL generation.
 
+Parameter constraints are evaluated against URL-decoded values, including
+Unicode text. Values are decoded exactly once. An encoded slash (`%2F`) is
+accepted inside a parameter only when its constraint permits `/` (for example,
+`->where('path', '.+')`); it cannot replace a literal route separator.
+
 Explicit `HEAD` routes are supported. When no explicit route exists, a `HEAD`
 request falls back to the matching `GET` route and returns the same status and
 headers without a response body.
@@ -293,6 +298,12 @@ $validated = $this->validate([
 ]);
 ```
 
+Integer values and integer-form limits are compared without floating-point
+rounding, including numeric strings beyond `PHP_INT_MAX`. Decimal and exponent
+forms use PHP numeric comparison. `numeric` rejects `NAN`, infinity, booleans,
+and values that overflow the finite floating-point range. Non-finite `min`
+or `max` limits are invalid rule definitions.
+
 Applications can register reusable custom rules. A rule receives the value,
 field name, complete input, and optional parameter. Return `true` or `null`
 when valid, `false` for the default message, or a custom error string:
@@ -313,8 +324,11 @@ $validated = $validator->validate($input, [
 ]);
 ```
 
-A callable may also be placed directly in a field's rule array for one-off
-validation. Invalid rule definitions and unknown named rules throw an
+A closure, invokable object, or callable array may also be placed directly in
+a field's rule array for one-off validation. Strings always refer to registered
+or built-in validation rule names, even when a PHP function has the same name.
+To use a function as an inline callback, wrap it in a closure or use first-class
+callable syntax. Invalid rule definitions and unknown named rules throw an
 `InvalidArgumentException` instead of silently passing.
 
 Browser validation failures flash sanitized input and redirect only to a
