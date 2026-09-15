@@ -51,7 +51,7 @@ final class ValidatorTest extends TestCase
     }
 
     #[DataProvider('numericBoundaries')]
-    public function testNumericBoundariesPreserveIntegerPrecision(int|string $value, string $rules, bool $valid): void
+    public function testNumericBoundariesPreservePrecision(int|float|string $value, string $rules, bool $valid): void
     {
         if (!$valid) {
             $this->expectException(ValidationException::class);
@@ -79,6 +79,30 @@ final class ValidatorTest extends TestCase
         yield ['-10', 'numeric|max:-9', true];
         yield ['1.25', 'numeric|min:1.2|max:1.3', true];
         yield ['1e2', 'numeric|min:99|max:101', true];
+        yield ['9007199254740993.0', 'numeric|max:9007199254740992', false];
+        yield ['9.007199254740993e15', 'numeric|max:9007199254740992', false];
+        yield ['9007199254740992', 'numeric|min:9.007199254740993e15', false];
+        yield ['-9.007199254740993e15', 'numeric|min:-9007199254740992', false];
+        yield ['9007199254740993', 'integer|max:9007199254740992.0', false];
+        yield ['+00090.07199254740993e+00014', 'numeric|min:9007199254740993|max:9007199254740993', true];
+        yield ['0.10000000000000000001', 'numeric|max:0.1', false];
+        yield ['.09999999999999999999', 'numeric|min:0.1', false];
+        yield ['1.2300', 'numeric|min:123e-2|max:0.123e1', true];
+        yield ['-0e-999', 'numeric|min:0.0|max:+0e300', true];
+        yield ['1e-999', 'numeric|max:0', false];
+        yield ['1e-999', 'numeric|min:1e-1000', true];
+        yield ['-1e-999', 'numeric|min:0', false];
+        yield ['1e-1000', 'numeric|min:2e-1000', false];
+        yield ['1.', 'numeric|min:1|max:1', true];
+        yield ['12e-1', 'numeric|min:1.19|max:1.21', true];
+        yield ['100.1', 'numeric|min:99.9', true];
+        yield ['-100.1', 'numeric|max:-99.9', true];
+        yield [0.1, 'numeric|min:0.1|max:0.1', true];
+        yield [1.25, 'numeric|min:1.2|max:1.3', true];
+        yield [-0.0, 'numeric|min:0|max:0', true];
+        yield ['1e-999999999', 'numeric|min:1e-1000000000', true];
+        yield ['1e-1000000000', 'numeric|min:2e-1000000000', false];
+        yield ['1.001', 'numeric|min: 1e-2 |max: 2 ', true];
     }
 
     #[DataProvider('nonFiniteNumbers')]
@@ -97,12 +121,19 @@ final class ValidatorTest extends TestCase
         yield ['INF'];
         yield ['1e999'];
         yield [true];
+        yield ['1e-9999999999999999999999'];
     }
 
     public function testNonFiniteLimitsAreConfigurationErrors(): void
     {
         $this->expectException(\InvalidArgumentException::class);
         (new Validator())->validate(['value' => 1], ['value' => 'numeric|max:1e999']);
+    }
+
+    public function testOutOfRangeExponentLimitsAreRejectedBeforeComparison(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        (new Validator())->validate(['value' => 1], ['value' => 'numeric|min:1e-999999999999999999999 ']);
     }
 
     public function testItReturnsOnlyValidatedAndTrimmedInput(): void

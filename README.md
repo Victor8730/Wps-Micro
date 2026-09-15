@@ -2,6 +2,9 @@
 
 Lightweight PHP framework core for building focused web applications.
 
+Version **3.1.0**. See [CHANGELOG.md](CHANGELOG.md) for release notes and
+[UPGRADING.md](UPGRADING.md) for upgrade guidance.
+
 WPS Micro provides the reusable request lifecycle, container, routing,
 middleware, validation, sessions, Twig integration, database access,
 migrations, and console primitives. Application controllers, models, routes,
@@ -213,6 +216,13 @@ Unicode text. Values are decoded exactly once. An encoded slash (`%2F`) is
 accepted inside a parameter only when its constraint permits `/` (for example,
 `->where('path', '.+')`); it cannot replace a literal route separator.
 
+Matching splits the URL at literal `/` separators before decoding each segment.
+For `/files/{folder}/{file}`, parameters `folder=a` and `file=b/c` produce
+`/files/a/b%2Fc` and retain those values even if both constraints are `.+`.
+Only the final parameter, when it occupies its entire segment, may consume
+additional unencoded segments if its constraint allows `/`. Constraints operate
+within their own segment; use encoded slashes for earlier parameters.
+
 Explicit `HEAD` routes are supported. When no explicit route exists, a `HEAD`
 request falls back to the matching `GET` route and returns the same status and
 headers without a response body.
@@ -298,11 +308,15 @@ $validated = $this->validate([
 ]);
 ```
 
-Integer values and integer-form limits are compared without floating-point
-rounding, including numeric strings beyond `PHP_INT_MAX`. Decimal and exponent
-forms use PHP numeric comparison. `numeric` rejects `NAN`, infinity, booleans,
-and values that overflow the finite floating-point range. Non-finite `min`
-or `max` limits are invalid rule definitions.
+Integer, decimal, and exponent-form strings are compared without floating-point
+rounding, including numeric strings beyond `PHP_INT_MAX`. Exponents are compared
+without expanding numbers into large strings. For example, `9007199254740993.0`
+and `9.007199254740993e15` both fail `max:9007199254740992`.
+For precision-sensitive input, pass strings: PHP floats are already approximate
+before validation and are compared using their JSON decimal representation.
+`numeric` rejects `NAN`, infinity, booleans, values that overflow the finite
+floating-point range, and exponents whose decimal order cannot safely fit in
+a PHP integer. Invalid `min` or `max` limits are configuration errors.
 
 Applications can register reusable custom rules. A rule receives the value,
 field name, complete input, and optional parameter. Return `true` or `null`

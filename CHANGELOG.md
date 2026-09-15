@@ -4,7 +4,7 @@ All notable changes to WPS Micro are documented in this file.
 
 The project follows [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [3.1.0] - 2026-09-15
 
 ### Added
 
@@ -30,7 +30,12 @@ The project follows [Semantic Versioning](https://semver.org/).
 - Named validation rules no longer collide with callable PHP function names.
 - Route constraints consistently match decoded Unicode and encoded parameters,
   without treating encoded slashes as literal route separators.
-- Integer validation bounds retain precision and numeric rules reject non-finite values.
+- Segment-based route matching preserves parameter boundaries when multiple
+  parameters accept encoded slashes. Only a final standalone parameter may
+  consume additional unencoded path segments.
+- Numeric bounds preserve precision for integer, decimal, and exponent-form
+  strings without expanding exponents into large buffers.
+- Numeric rules reject non-finite values and exponents outside the safe integer range.
 - Empty route groups no longer trigger an array-offset deprecation on PHP 8.5.
 
 ## [3.0.0] - 2026-07-22

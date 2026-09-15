@@ -1,5 +1,30 @@
 # Upgrading WPS Micro
 
+## Upgrading From 3.0 To 3.1
+
+PHP 8.3 remains the minimum requirement. Application code stays in the skeleton;
+no directory migration is required.
+
+```bash
+composer require webpagestudio/wps-micro:^3.1
+```
+
+Version 3.1 adds named routes, groups, parameter constraints, `route:list`, and
+custom validation rules. Review these behaviors when updating application code:
+
+- Duplicate method/path pairs and duplicate route names fail during registration.
+- Constraints evaluate decoded values within individual URL segments. Encoded
+  slashes stay inside their parameter. Only a final standalone parameter may
+  consume additional unencoded segments when its constraint allows slashes.
+- `min` and `max` compare values for fields using `integer` or `numeric`, and
+  character lengths for string fields. Decimal and exponent-form numeric strings
+  preserve precision; non-finite values and unsafe exponents are rejected.
+- String validation rules are always names. Use closures, invokable objects,
+  callable arrays, or first-class callable syntax for inline validation.
+
+Run application tests after updating. Package versions come from Git tags;
+do not add a hard-coded `version` field to the framework's `composer.json`.
+
 ## Upgrading From 2.1 To 3.0
 
 WPS Micro 3 separates the reusable framework core from application code. This

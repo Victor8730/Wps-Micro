@@ -334,30 +334,69 @@ class Validator
      */
     private function isFiniteNumber(mixed $value): bool
     {
-        return is_numeric($value) && is_finite((float) $value);
+        if (!is_numeric($value) || !is_finite((float) $value)) {
+            return false;
+        }
+
+        $number = trim((string) $value);
+
+        if (preg_match('/[eE]([+-]?)([0-9]+)$/D', $number, $matches) === 1) {
+            $exponent = filter_var($matches[1].(ltrim($matches[2], '0') ?: '0'), FILTER_VALIDATE_INT);
+
+            return $exponent !== false
+                && $exponent <= PHP_INT_MAX - strlen($number)
+                && $exponent >= PHP_INT_MIN + strlen($number);
+        }
+
+        return true;
     }
 
     /**
-     * Compare integer representations exactly, including values beyond PHP_INT_MAX.
+     * Compare decimal coefficients and orders without expanding exponent notation.
      */
     private function compareNumbers(int|float|string $value, string $limit): int
     {
-        $left = (string) $value;
+        $number = is_float($value) ? json_encode($value, JSON_THROW_ON_ERROR) : (string) $value;
+        [$leftSign, $leftDigits, $leftOrder] = $this->decimalParts($number);
+        [$rightSign, $rightDigits, $rightOrder] = $this->decimalParts($limit);
 
-        if (preg_match('/^[+-]?[0-9]+$/D', $left) === 1 && preg_match('/^[+-]?[0-9]+$/D', $limit) === 1) {
-            $leftDigits = ltrim(ltrim($left, '+-'), '0');
-            $rightDigits = ltrim(ltrim($limit, '+-'), '0');
-            $leftSign = $leftDigits === '' ? 0 : (str_starts_with($left, '-') ? -1 : 1);
-            $rightSign = $rightDigits === '' ? 0 : (str_starts_with($limit, '-') ? -1 : 1);
-
-            if ($leftSign !== $rightSign) {
-                return $leftSign <=> $rightSign;
-            }
-
-            return $leftSign * ((strlen($leftDigits) <=> strlen($rightDigits)) ?: (strcmp($leftDigits, $rightDigits) <=> 0));
+        if ($leftSign !== $rightSign) {
+            return $leftSign <=> $rightSign;
         }
 
-        return $value <=> $limit;
+        if ($leftSign === 0 || $leftOrder !== $rightOrder) {
+            return $leftSign * ($leftOrder <=> $rightOrder);
+        }
+
+        $length = max(strlen($leftDigits), strlen($rightDigits));
+
+        return $leftSign * (strcmp(
+            str_pad($leftDigits, $length, '0'),
+            str_pad($rightDigits, $length, '0'),
+        ) <=> 0);
+    }
+
+    /**
+     * Normalize a validated number to sign, significant digits, and decimal order.
+     *
+     * @return array{int, string, int}
+     */
+    private function decimalParts(string $number): array
+    {
+        [$mantissa, $exponent] = array_pad(preg_split('/[eE]/', $number) ?: [], 2, '0');
+        $negative = str_starts_with($mantissa, '-');
+        $mantissa = ltrim($mantissa, '+-');
+        $point = strpos($mantissa, '.');
+        $fractionLength = $point === false ? 0 : strlen($mantissa) - $point - 1;
+        $digits = ltrim(str_replace('.', '', $mantissa), '0');
+
+        if ($digits === '') {
+            return [0, '0', 0];
+        }
+
+        $order = (int) $exponent + (strlen($digits) - $fractionLength);
+
+        return [$negative ? -1 : 1, rtrim($digits, '0'), $order];
     }
 
     /**

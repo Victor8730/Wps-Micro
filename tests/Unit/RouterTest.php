@@ -14,6 +14,51 @@ use WpsMicro\Core\Router;
 
 final class RouterTest extends TestCase
 {
+    public function testEncodedSlashesPreserveBoundariesBetweenBroadParameters(): void
+    {
+        $router = $this->router();
+        $router->get('/files/{folder}/{file}', [RouterTestController::class, 'show'])
+            ->where(['folder' => '.+', 'file' => '.+'])->name('files');
+
+        foreach ([
+            ['folder' => 'a', 'file' => 'b/c'],
+            ['folder' => 'a/b', 'file' => 'c'],
+            ['folder' => 'a/b', 'file' => 'c/d'],
+            ['folder' => "caf\u{00e9}/a", 'file' => '%2F/b'],
+        ] as $parameters) {
+            $url = $router->url('files', $parameters);
+            self::assertSame($parameters, $router->match(new Request('GET', $url))->getParameters());
+            self::assertSame($parameters, $router->match(new Request('HEAD', $url))->getParameters());
+        }
+
+        try {
+            $router->match(new Request('POST', '/files/a/b%2Fc'));
+            self::fail('Expected a method error.');
+        } catch (MethodNotAllowedException $exception) {
+            self::assertSame(['GET', 'HEAD'], $exception->getAllowedMethods());
+        }
+    }
+
+    public function testOnlyTheFinalStandaloneParameterConsumesExtraSegments(): void
+    {
+        $router = $this->router();
+        $router->get('/files/{folder}/{file}', [RouterTestController::class, 'show'])
+            ->where(['folder' => '.+', 'file' => '.+']);
+
+        self::assertSame(
+            ['folder' => 'a', 'file' => 'b/c'],
+            $router->match(new Request('GET', '/files/a/b/c'))->getParameters(),
+        );
+
+        $router->get('/archive/{folder}/edit', [RouterTestController::class, 'show'])->where('folder', '.+');
+        self::assertSame(
+            ['folder' => 'a/b'],
+            $router->match(new Request('GET', '/archive/a%2Fb/edit'))->getParameters(),
+        );
+        $this->expectException(HttpNotFoundException::class);
+        $router->match(new Request('GET', '/archive/a/b/edit'));
+    }
+
     public function testItMatchesExplicitRoutesAndExtractsParameters(): void
     {
         $router = $this->router();

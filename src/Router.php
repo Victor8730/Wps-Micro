@@ -16,7 +16,7 @@ use WpsMicro\Core\Exceptions\MethodNotAllowedException;
  *     middleware: list<Middleware|string>,
  *     name: ?string,
  *     constraints: array<string, string>,
- *     pattern: ?string,
+ *     segments: list<array{pattern: string, catchAll: bool}>,
  *     parameters: list<string>
  * }
  */
@@ -224,7 +224,7 @@ class Router
     {
         $methods = $request->getMethod() === 'HEAD' ? ['HEAD', 'GET'] : [$request->getMethod()];
         $path = $this->normalizePath($request->getPath());
-        [$decodedPath, $encodedSlashes] = $this->decodePath($path);
+        $segments = array_map('rawurldecode', explode('/', $path));
 
         foreach ($methods as $method) {
             $staticIndex = $this->staticRoutes[$method][$path] ?? null;
@@ -234,7 +234,7 @@ class Router
             }
 
             foreach ($this->dynamicRoutes[$method] ?? [] as $index) {
-                $parameters = $this->matchCompiledPath($this->routes[$index], $decodedPath, $encodedSlashes);
+                $parameters = $this->matchCompiledPath($this->routes[$index], $segments);
 
                 if ($parameters !== null) {
                     return $this->buildRouteMatch($this->routes[$index], $parameters);
@@ -242,7 +242,7 @@ class Router
             }
         }
 
-        $allowedMethods = $this->allowedMethods($path, $request->getMethod(), $decodedPath, $encodedSlashes);
+        $allowedMethods = $this->allowedMethods($path, $request->getMethod(), $segments);
 
         if ($allowedMethods !== []) {
             throw new MethodNotAllowedException($allowedMethods);
@@ -340,16 +340,16 @@ class Router
     /**
      * Return methods registered for a path other than the current method.
      *
-     * @param list<int> $encodedSlashes
+     * @param list<string> $segments
      *
      * @return list<string>
      */
-    private function allowedMethods(string $path, string $currentMethod, string $decodedPath, array $encodedSlashes): array
+    private function allowedMethods(string $path, string $currentMethod, array $segments): array
     {
         $methods = [];
 
         foreach ($this->routes as $route) {
-            if ($route['method'] === $currentMethod || !$this->routeMatchesPath($route, $path, $decodedPath, $encodedSlashes)) {
+            if ($route['method'] === $currentMethod || !$this->routeMatchesPath($route, $path, $segments)) {
                 continue;
             }
 
@@ -407,56 +407,39 @@ class Router
      * Match a compiled dynamic route against a normalized request path.
      *
      * @param RouteData $route
-     * @param list<int> $encodedSlashes
+     * @param list<string> $requestSegments
      *
      * @return null|array<string, string>
      */
-    private function matchCompiledPath(array $route, string $requestPath, array $encodedSlashes): ?array
+    private function matchCompiledPath(array $route, array $requestSegments): ?array
     {
-        $pattern = $route['pattern'];
-
-        if ($pattern === null || preg_match($pattern, $requestPath, $matches, PREG_OFFSET_CAPTURE) !== 1) {
+        if (count($requestSegments) < count($route['segments'])) {
             return null;
         }
 
         $parameters = [];
 
-        foreach ($route['parameters'] as $name) {
-            [$value, $offset] = $matches[$name];
-            $parameters[$name] = $value;
+        foreach ($route['segments'] as $index => $segment) {
+            $value = $requestSegments[$index];
 
-            foreach ($encodedSlashes as $key => $slashOffset) {
-                if ($slashOffset >= $offset && $slashOffset < $offset + strlen($value)) {
-                    unset($encodedSlashes[$key]);
+            if ($segment['catchAll']) {
+                $value = implode('/', array_slice($requestSegments, $index));
+            } elseif ($index === count($route['segments']) - 1 && count($requestSegments) !== count($route['segments'])) {
+                return null;
+            }
+
+            if (preg_match($segment['pattern'], $value, $matches) !== 1) {
+                return null;
+            }
+
+            foreach ($route['parameters'] as $name) {
+                if (isset($matches[$name])) {
+                    $parameters[$name] = $matches[$name];
                 }
             }
         }
 
-        // Encoded slashes may belong to parameters, never to route separators.
-        return $encodedSlashes === [] ? $parameters : null;
-    }
-
-    /**
-     * Decode once while retaining the byte offsets of encoded path separators.
-     *
-     * @return array{string, list<int>}
-     */
-    private function decodePath(string $path): array
-    {
-        if (!str_contains($path, '%')) {
-            return [$path, []];
-        }
-
-        $slashes = [];
-        preg_match_all('/%[0-9a-f]{2}/i', $path, $matches, PREG_OFFSET_CAPTURE);
-
-        foreach ($matches[0] as $index => [$encoded, $offset]) {
-            if (strcasecmp($encoded, '%2f') === 0) {
-                $slashes[] = $offset - 2 * $index;
-            }
-        }
-
-        return [rawurldecode($path), $slashes];
+        return $parameters;
     }
 
     /**
@@ -464,41 +447,52 @@ class Router
      *
      * @param array<string, string> $constraints
      *
-     * @return array{pattern: ?string, parameters: list<string>}
+     * @return array{segments: list<array{pattern: string, catchAll: bool}>, parameters: list<string>}
      */
     private function compilePath(string $path, array $constraints = []): array
     {
-        $tokens = preg_split(
-            '/(\{[a-zA-Z_][a-zA-Z0-9_]*\})/',
-            $path,
-            -1,
-            PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY,
-        );
-
-        if ($tokens === false) {
-            throw new \InvalidArgumentException('Unable to parse route path: '.$path);
-        }
-
         $parameters = [];
-        $pattern = '';
+        $segments = [];
+        $pathSegments = explode('/', $path);
 
-        foreach ($tokens as $token) {
-            if (preg_match('/^\{([a-zA-Z_][a-zA-Z0-9_]*)\}$/', $token, $matches) !== 1) {
-                $pattern .= preg_quote($token);
+        foreach ($pathSegments as $index => $pathSegment) {
+            $tokens = preg_split(
+                '/(\{[a-zA-Z_][a-zA-Z0-9_]*\})/',
+                $pathSegment,
+                -1,
+                PREG_SPLIT_DELIM_CAPTURE | PREG_SPLIT_NO_EMPTY,
+            );
 
-                continue;
+            if ($tokens === false) {
+                throw new \InvalidArgumentException('Unable to parse route path: '.$path);
             }
 
-            $name = $matches[1];
+            $pattern = '';
 
-            if (in_array($name, $parameters, true)) {
-                throw new \InvalidArgumentException('Duplicate route parameter: '.$name);
+            foreach ($tokens as $token) {
+                if (preg_match('/^\{([a-zA-Z_][a-zA-Z0-9_]*)\}$/', $token, $matches) !== 1) {
+                    $pattern .= preg_quote($token);
+
+                    continue;
+                }
+
+                $name = $matches[1];
+
+                if (in_array($name, $parameters, true)) {
+                    throw new \InvalidArgumentException('Duplicate route parameter: '.$name);
+                }
+
+                $parameters[] = $name;
+                $constraint = $constraints[$name] ?? '[^/]+';
+                $this->assertValidConstraint($constraint);
+                $pattern .= '(?P<'.$name.'>'.$constraint.')';
             }
 
-            $parameters[] = $name;
-            $constraint = $constraints[$name] ?? '[^/]+';
-            $this->assertValidConstraint($constraint);
-            $pattern .= '(?P<'.$name.'>'.$constraint.')';
+            $segments[] = [
+                'pattern' => $this->regexPattern('^'.$pattern.'$'),
+                'catchAll' => $index === count($pathSegments) - 1
+                    && preg_match('/^\{[a-zA-Z_][a-zA-Z0-9_]*\}$/D', $pathSegment) === 1,
+            ];
         }
 
         foreach (array_keys($constraints) as $name) {
@@ -512,7 +506,7 @@ class Router
         }
 
         return [
-            'pattern' => $parameters === [] ? null : $this->regexPattern('^'.$pattern.'$'),
+            'segments' => $segments,
             'parameters' => $parameters,
         ];
     }
@@ -561,7 +555,7 @@ class Router
 
         $this->routeIndexes[$route['method']][$route['path']] = $index;
 
-        if ($route['pattern'] === null) {
+        if ($route['parameters'] === []) {
             $this->staticRoutes[$route['method']][$route['path']] = $index;
         } else {
             $this->dynamicRoutes[$route['method']][] = $index;
@@ -584,13 +578,13 @@ class Router
      * Check whether one route path matches a normalized request path.
      *
      * @param RouteData $route
-     * @param list<int> $encodedSlashes
+     * @param list<string> $segments
      */
-    private function routeMatchesPath(array $route, string $path, string $decodedPath, array $encodedSlashes): bool
+    private function routeMatchesPath(array $route, string $path, array $segments): bool
     {
-        return $route['pattern'] === null
+        return $route['parameters'] === []
             ? $route['path'] === $path
-            : $this->matchCompiledPath($route, $decodedPath, $encodedSlashes) !== null;
+            : $this->matchCompiledPath($route, $segments) !== null;
     }
 
     /**
